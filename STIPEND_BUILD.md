@@ -1,4 +1,4 @@
-# STIPEND — Cursor Build Spec (UXmaxx Hackathon, 7702 Collective)
+# STIPEND — Cursor Build Spec 
 
 > **How to use this file:** This is the source of truth for the build. Every work session,
 > open this file first. Find the first phase whose checkbox is unchecked, read its
