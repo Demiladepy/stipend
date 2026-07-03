@@ -1,0 +1,19 @@
+---
+description: Stipend build spec — read STIPEND_BUILD.md and continue first unchecked phase
+alwaysApply: true
+---
+
+# Stipend session start
+
+At the start of every session on this repo:
+
+1. **Read `STIPEND_BUILD.md` in full** (repo root). That file is the source of truth — not chat history.
+2. **Find the first phase with an unchecked box** (`### [ ] PHASE N`).
+3. **Read that phase's RESUME HERE note** and continue from there.
+4. **At session end**, append to the PROGRESS LOG (newest at top) and update the phase checkbox / RESUME note if work advanced.
+
+Do not skip ahead to later phases. Do not rely on prior chat for build state — use the file.
+
+Pitch framing (lead every judge conversation): wallet-enforced delegation, NOT vault-based streaming like Sablier. Stipend is the enforcement primitive beneath x402/MPP/ACP/AP2 — the wallet is where limits actually fire.
+
+Phase 1 critical unknown: whether Magic `sign7702Authorization` allows an arbitrary delegation target (our policy contract) or whitelists targets. Resolve on day one.
