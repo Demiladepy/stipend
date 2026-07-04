@@ -40,7 +40,18 @@ tips that revoke instantly at wallet layer; (3) **allowance** — parent→stude
 - Policy enforcement: **custom Stipend delegation-target contract** (Solidity, Foundry)
 - Agent scene: a minimal **x402-payable endpoint** the agent calls
 - Package manager: **pnpm**
-- Deploy: **Vercel** (frontend), testnet contracts (chain TBD in Phase 1)
+- Deploy: **Vercel** (frontend), **MAINNET contracts** (see chain config below)
+
+### CHAIN CONFIG (LOCKED — mainnet only)
+- **Cross-chain demo triangle: Ethereum (1) / Arbitrum (42161) / Base (8453)** — EVM-only,
+  deepest UA routing liquidity, easiest cross-chain to test.
+- Stipend policy contract deploys on **Base (8453)** (cheapest gas, reference demo default).
+- Cross-chain leg for the UA Track requirement: route value **Arbitrum/Ethereum → Base**
+  (or Base → Arbitrum) via UA. Pick whichever pair DevRel says is most reliable this week.
+- **NO testnet, NO Solana** for the build. Real funds. Budget ~$30–50 in ETH/USDC across the
+  three chains for iteration + a clean finale run. Guard keys; use a dedicated dev wallet, not
+  a personal one.
+- Practical: keep small ETH on Base for delegation gas + small USDC on Arb/ETH/Base for routing.
 
 Reference repos to clone and study FIRST (Phase 1):
 - `github.com/Particle-Network/universal-accounts-7702` (UA + 7702, Privy auth, LI.FI routing)
@@ -83,12 +94,61 @@ cross-chain route (that's the UA Track requirement).
    deploy through Particle's UA delegate and enforce policy differently).
 **DONE WHEN:** you have a local app where a Magic email login controls a 7702 UA, and you've
 written the supported-chain intersection + the arbitrary-target answer into the PROGRESS LOG.
-**RESUME HERE NOTE:** _Clone/install/build/dev ✅ in `reference/ua-7702-magic-demo/ua-7702-demo`. Dev server: `pnpm run dev` → localhost:3000. **BLOCKED:** live login + arbitrary-target test need `.env` (Magic + Particle keys) — copy `.env.example`, fill keys, click "Phase 1: test arbitrary delegate target" on Delegation card. Full report: `reference/PHASE1_REPORT.md`. Chain intersection: **8453 Base** primary; alternates 42161/1/10; Sepolia 11155111 for testnet. Arbitrary target: SDK accepts any address (no client whitelist); live Y/N pending. **Architecture flag:** 7702 = one delegate slot — Particle UA vs Stipend policy contract cannot both be targets; likely policy enforced via calls from UA-delegated wallet._
+**RESUME HERE NOTE:** _Clone/install/build/dev ✅ in `reference/ua-7702-magic-demo/ua-7702-demo`
+(run `pnpm run dev` → localhost:3000). Chain config now LOCKED (see §1): mainnet EVM triangle
+ETH/Arb/Base, contract on Base 8453. Arbitrary-target: SDK accepts any address, no client-side
+whitelist found in magic-sdk bundle; **live sign-only test still PENDING** — needs Magic +
+Particle keys in `.env`, then click "Phase 1: test arbitrary delegate target" on the Delegation
+card (button already added to reference demo). Full write-up: `reference/PHASE1_REPORT.md`.
+Also PENDING: Particle DevRel on-chain-enforcement question (see ARCHITECTURE DECISION). Given
+the mainnet/enforcement pivot to PLAN B (custody), the Magic arbitrary-target answer is no
+longer blocking for Phase 2 — but still record it. **Next:** fill `.env`, run live login →
+delegate on Base → arbitrary-target test, log pass/fail, then check this box._
+
+---
+
+### ARCHITECTURE DECISION (resolve BEFORE writing Phase 2 Solidity)
+DevRel confirmed: **in 7702 mode the EOA _is_ the UA** — the delegation slot points at
+Particle's UA implementation; there is NO separate UA smart-account address. Good: no two-hop
+address problem. BUT this does NOT by itself confirm WHERE rule enforcement lives. "Any logic
+applied to the EOA works" is ambiguous between:
+  - Interp 1 (wins): UA can call out to / be gated by a policy contract → enforcement on-chain
+    in our code. Moat intact.
+  - Interp 2 (kills pitch): "logic" = app-level logic in our dApp that builds the UA txns; the
+    EOA enforces nothing → off-chain enforcement → judge asks "what stops a direct call?" →
+    no answer.
+**Outstanding question to Particle DevRel (ask + confirm before Solidity):** "Can spend rules
+be enforced ON-CHAIN in the UA execution path (a hook/module/guardian contract, or a scoped
+permission), such that a value transfer that bypasses my app is still blocked? Or does the UA
+execute any well-formed transaction it's given?"
+
+**Because the delegation slot is taken by Particle's UA, our enforcement almost certainly must
+live at the ASSET layer, not the delegation slot. This is likely the cleanest design anyway:**
+
+**PLAN B (custody-based, delegation-slot-agnostic) — DEFAULT unless DevRel enables a hook:**
+Funds to be disbursed are held IN the Stipend contract. The contract only ever releases within
+the rule (per-period cap, total cap, revocation). It does NOT matter what the EOA's 7702 slot
+points at, because nobody can pull more than the contract allows — the contract holds the money.
+The UA's job shrinks to what the UA Track actually requires: **cross-chain routing** of the
+deposit in and/or the payout out. This sidesteps the whole one-slot fight.
+  - Sender deposits into Stipend contract (funded cross-chain via UA from ETH/Arb → Base).
+  - Recipient/agent pulls within policy; contract enforces; UA can route payout to their chain.
+  - "Wallet is where limits fire" still true in spirit: the on-chain contract is the enforcer,
+    not any off-chain keeper. Pitch stays honest.
+
+**PLAN A (hook-based) — ONLY if DevRel confirms a supported UA hook/permission:**
+Keep the delegation-target/policy-in-execution-path design below. Stronger "wallet-native"
+story, but depends on Particle exposing a gating mechanism. Do NOT assume it exists.
+
+> Decision rule: default to PLAN B now (it's unblocked and honest). Upgrade to PLAN A only if
+> DevRel confirms an on-chain hook/permission before you start the contract. Record the answer
+> in the PROGRESS LOG.
 
 ---
 
 ### [ ] PHASE 2 — Stipend policy contract v1 (2–3 DAYS)
-**Goal:** The delegation-target contract an EOA points to via 7702, enforcing the rule.
+**Goal:** The policy contract that enforces the rule on-chain. Under PLAN B it CUSTODIES funds
+and releases within policy; under PLAN A it sits in the UA execution path as a delegation target.
 **Design (minimal):**
 ```
 struct Policy {
@@ -105,15 +165,20 @@ struct Policy {
 ```
 Functions:
 - `createStipend(Policy)` — sender defines the rule (store keyed by an id / recipient).
-- `execute(id, amount)` — enforces: not revoked, within period cap, within total cap,
-  period rollover logic; transfers; updates counters. Callable by recipient (pull) OR a
-  keeper. Reverts if any check fails. **The enforcement lives here — this is the moat.**
-- `revoke(id)` / `modify(id, newPolicy)` — sender-only.
-- View helpers: `available(id)`, `getPolicy(id)`.
+  **PLAN B:** sender also DEPOSITS the funding amount into the contract here (or via a separate
+  `fund(id)` call). Add a `balance` field to Policy to track custodied funds.
+- `claim(id, amount)` — [PLAN B name; PLAN A = `execute`] enforces: not revoked, within period
+  cap, within total cap, sufficient custodied balance, period rollover logic; transfers from
+  contract to recipient; updates counters. Callable by recipient (pull) or agent. Reverts if
+  any check fails. **The enforcement lives here — this is the moat.**
+- `revoke(id)` — sender-only. **PLAN B:** refunds remaining custodied balance to sender.
+- `modify(id, newPolicy)` — sender-only.
+- View helpers: `available(id)`, `getPolicy(id)`, `balanceOf(id)`.
 **Tests (Foundry):** happy path, over-period-cap revert, over-total-cap revert, revoked
-revert, period rollover, modify, unauthorized-caller revert.
-**DONE WHEN:** `forge test` green on all cases; contract deployed to the Phase-1 testnet;
-address recorded in PROGRESS LOG + `.env`.
+revert, period rollover, modify, unauthorized-caller revert. **PLAN B adds:** insufficient
+custodied balance revert, revoke-refunds-remainder, deposit accounting.
+**DONE WHEN:** `forge test` green on all cases; contract deployed to **Base mainnet (8453)**;
+address recorded in PROGRESS LOG + `.env`. (Deploy costs real ETH — small on Base.)
 **RESUME HERE NOTE:** _<fill in: contract address, which tests pass, any TODO>_
 
 ---
@@ -128,7 +193,7 @@ address recorded in PROGRESS LOG + `.env`.
    chain (this satisfies the "at least one cross-chain operation via UA" requirement).
 5. "My Stipends" list: active rules, amount available, modify/revoke buttons.
 **DONE WHEN:** you can create a Stipend and execute at least ONE real cross-chain transfer
-end-to-end on testnet, visible in the UI.
+end-to-end on **mainnet (Arb/ETH → Base via UA)**, visible in the UI, with a tx hash.
 **RESUME HERE NOTE:** _<fill in: which chains routed, tx hash, UI state>_
 
 ---
@@ -200,5 +265,12 @@ rewards UX polish.
 ## PROGRESS LOG (append every session — newest at top)
 <!-- FORMAT: [DATE] Phase X — what got done, what's blocking, exact next step -->
 
-- [2026-07-01] Phase 1 (partial) — Cloned `ua-7702-magic-demo` to `reference/`, `pnpm install` + `pnpm build` green, dev server runs on :3000. Documented chain intersection (Base 8453 primary; Magic 7702: ETH/Sepolia/Arbitrum/Base/Optimism). Added arbitrary-target sign-only test button to reference demo DelegationCard. SDK has no client-side whitelist; live sign test + full login→delegate E2E **blocked on Magic + Particle API keys in `.env`**. Architecture flag: single 7702 delegate slot — Particle UA target vs Stipend policy contract; likely enforce policy via UA wallet calling Stipend contract. **Next:** copy `.env.example` → `.env`, run live test, check Phase 1 box if pass.
+- [FRI] Chain config LOCKED: mainnet only, EVM triangle ETH(1)/Arbitrum(42161)/Base(8453),
+  contract on Base. No testnet, no Solana. DevRel: "in 7702 mode the EOA IS the UA, logic on
+  the EOA works automatically" → resolves address-topology (no 2-hop) but NOT enforcement
+  location. Defaulting to PLAN B (custody-based: funds held in Stipend contract, released
+  within policy, UA does cross-chain routing). Upgrade to PLAN A only if DevRel confirms an
+  on-chain UA hook/permission. STILL PENDING: (a) run arbitrary-target sign test for Magic
+  whitelist answer; (b) confirm on-chain enforcement question with Particle DevRel.
+  Next action: finish Phase 1 15-min live test (Magic keys + $0.01 ETH on Base), report pass/fail.
 - [INIT] Spec created. Idea locked: Stipend. Next action: PHASE 1, clone ua-7702-magic-demo.
