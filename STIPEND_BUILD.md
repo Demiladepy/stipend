@@ -179,7 +179,21 @@ revert, period rollover, modify, unauthorized-caller revert. **PLAN B adds:** in
 custodied balance revert, revoke-refunds-remainder, deposit accounting.
 **DONE WHEN:** `forge test` green on all cases; contract deployed to **Base mainnet (8453)**;
 address recorded in PROGRESS LOG + `.env`. (Deploy costs real ETH — small on Base.)
-**RESUME HERE NOTE:** _<fill in: contract address, which tests pass, any TODO>_
+**RESUME HERE NOTE:** _Contract WRITTEN + fully TESTED, NOT yet deployed (box stays unchecked
+until Base deploy). Foundry project at `contracts/` (Soldeer deps, NO git submodules): OZ 5.1.0
++ forge-std 1.9.5 under `contracts/dependencies/`. Contract: `contracts/src/StipendVault.sol`
+(PLAN B custody). Tests: `contracts/test/StipendVault.t.sol` → **21/21 PASS** (`forge test`).
+Run tests: `$env:PATH="$HOME\.foundry\bin;"+$env:PATH; forge test -vv` from `contracts/`.
+DESIGN NOTES / deviations from the task signature: (1) added `initialDeposit` param to
+`createStipend(...)` so ERC20 can be funded at creation via transferFrom (native still uses
+msg.value; note the 6-field rule is unchanged, this is a 7th funding arg). (2) added
+`approveAgent(id,agent,bool)` + `agentApproved` mapping to implement the "recipient OR approved
+agent" claim rule. (3) period rollover advances by WHOLE periods (keeps window boundaries
+aligned) rather than resetting to block.timestamp. (4) uses custom errors, not string reverts.
+Struct matches spec (incl. `sender` + `balance`). NEXT: (a) write `Deploy.s.sol` forge script;
+(b) deploy to Base mainnet 8453 with dedicated dev wallet; (c) record address in PROGRESS LOG +
+frontend `.env`; (d) then check this box. Also still open from Phase 1: Particle DevRel on-chain
+enforcement Q + Magic arbitrary-target live test (neither blocks Phase 3 under PLAN B)._
 
 ---
 
@@ -265,6 +279,18 @@ rewards UX polish.
 ## PROGRESS LOG (append every session — newest at top)
 <!-- FORMAT: [DATE] Phase X — what got done, what's blocking, exact next step -->
 
+- [SAT] Phase 2 (PLAN B) — Scaffolded Foundry project at `contracts/` using **Soldeer** (no git
+  submodules — deps vendored under `contracts/dependencies/`: OZ 5.1.0 + forge-std 1.9.5). Wrote
+  `src/StipendVault.sol`: custody-based enforcement (createStipend/fund/claim/revoke/modify/
+  approveAgent + views available/balanceOf/getPolicy), SafeERC20 + ReentrancyGuard, native +
+  ERC20 (USDC) support, whole-period rollover, custom errors. Wrote `test/StipendVault.t.sol` →
+  **21/21 tests PASS** covering every required case: happy claim, over-period-cap, over-total-cap,
+  revoked, rollover reset + whole-period alignment, insufficient balance, revoke-refunds-remainder,
+  modify + non-sender revert + cap-below-spent, non-recipient/non-agent revert, agent claim,
+  native path, deposit accounting, reentrancy guard. Deviations: added `initialDeposit` arg to
+  createStipend (ERC20 funding at creation); added agent-approval mechanism. NOT deployed (per
+  instruction). Blocking Phase 2 completion: Base mainnet deploy. Next action: write `Deploy.s.sol`,
+  deploy to Base 8453 with dedicated dev wallet, record address in this log + frontend `.env`.
 - [FRI] Chain config LOCKED: mainnet only, EVM triangle ETH(1)/Arbitrum(42161)/Base(8453),
   contract on Base. No testnet, no Solana. DevRel: "in 7702 mode the EOA IS the UA, logic on
   the EOA works automatically" → resolves address-topology (no 2-hop) but NOT enforcement
