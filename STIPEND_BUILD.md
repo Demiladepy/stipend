@@ -54,6 +54,10 @@ tips that revoke instantly at wallet layer; (3) **allowance** — parent→stude
 - Practical: keep small ETH on Base for delegation gas + small USDC on Arb/ETH/Base for routing.
 
 Reference repos to clone and study FIRST (Phase 1):
+- `github.com/soos3d/workshop-demo-02` (**Davide's official kickoff-workshop template** — UA SDK
+  v2, Magic auth, undelegate flow, delegation guide in docs/. Cloned to
+  `reference/workshop-demo-02`. His closing slide endorses exactly our extension path:
+  "swap the target — createTransferTransaction() / createUniversalTransaction()".)
 - `github.com/Particle-Network/universal-accounts-7702` (UA + 7702, Privy auth, LI.FI routing)
 - `github.com/Particle-Network/ua-7702-magic-demo` (UA + 7702 + Magic — closest to our stack)
 - `github.com/Particle-Network/universal-account-example` (UA quickstart)
@@ -179,36 +183,93 @@ revert, period rollover, modify, unauthorized-caller revert. **PLAN B adds:** in
 custodied balance revert, revoke-refunds-remainder, deposit accounting.
 **DONE WHEN:** `forge test` green on all cases; contract deployed to **Base mainnet (8453)**;
 address recorded in PROGRESS LOG + `.env`. (Deploy costs real ETH — small on Base.)
-**RESUME HERE NOTE:** _Contract WRITTEN + fully TESTED, NOT yet deployed (box stays unchecked
-until Base deploy). Foundry project at `contracts/` (Soldeer deps, NO git submodules): OZ 5.1.0
-+ forge-std 1.9.5 under `contracts/dependencies/`. Contract: `contracts/src/StipendVault.sol`
-(PLAN B custody). Tests: `contracts/test/StipendVault.t.sol` → **21/21 PASS** (`forge test`).
-Run tests: `$env:PATH="$HOME\.foundry\bin;"+$env:PATH; forge test -vv` from `contracts/`.
-DESIGN NOTES / deviations from the task signature: (1) added `initialDeposit` param to
-`createStipend(...)` so ERC20 can be funded at creation via transferFrom (native still uses
-msg.value; note the 6-field rule is unchanged, this is a 7th funding arg). (2) added
-`approveAgent(id,agent,bool)` + `agentApproved` mapping to implement the "recipient OR approved
-agent" claim rule. (3) period rollover advances by WHOLE periods (keeps window boundaries
-aligned) rather than resetting to block.timestamp. (4) uses custom errors, not string reverts.
-Struct matches spec (incl. `sender` + `balance`). NEXT: (a) write `Deploy.s.sol` forge script;
-(b) deploy to Base mainnet 8453 with dedicated dev wallet; (c) record address in PROGRESS LOG +
-frontend `.env`; (d) then check this box. Also still open from Phase 1: Particle DevRel on-chain
-enforcement Q + Magic arbitrary-target live test (neither blocks Phase 3 under PLAN B)._
+**RESUME HERE NOTE:** _Contract WRITTEN + fully TESTED + deploy script READY; **mainnet broadcast
+BLOCKED** until `contracts/.env` exists with a **funded dedicated dev wallet** (~0.001 ETH on
+Base). Foundry project at `contracts/` (Soldeer, no submodules). Contract:
+`contracts/src/StipendVault.sol` (PLAN B). Tests: **21/21 PASS**. Deploy:
+`contracts/script/Deploy.s.sol` — simulates clean on Base 8453. To deploy: (1) `cp
+contracts/.env.example contracts/.env` and fill `PRIVATE_KEY` + `BASE_RPC_URL`; (2) from
+`contracts/`, run `.\deploy.ps1` OR `forge script script/Deploy.s.sol:DeployStipendVault
+--rpc-url base --broadcast -vvvv`; (3) copy address into `contracts/.env` +
+`NEXT_PUBLIC_STIPEND_VAULT_ADDRESS` in root `.env.local`; (4) check this box. Deviations:
+`initialDeposit` arg on createStipend; `approveAgent` for agent claims; whole-period rollover._
 
 ---
 
-### [ ] PHASE 3 — Sender flow + UA cross-chain (2–3 DAYS)
-**Goal:** A user creates a Stipend and funds/executes it cross-chain via UA.
+### [ ] PHASE 3 — Sender flow + UA cross-chain funding (2–3 DAYS)
+**Goal:** A sender logs in, creates a Stipend, and FUNDS it cross-chain via UA — i.e. the
+sender pays from USDC/ETH on Arbitrum or Ethereum, and the value lands in the StipendVault
+contract on Base. This cross-chain deposit IS the UA Track requirement ("at least one
+cross-chain operation moving value via UA"). Enforcement already lives in the contract (Plan B),
+so UA's job here is purely routing the funds in.
+
+**The critical mechanic (read carefully):**
+The sender's funds are on chain X (Arb/ETH). StipendVault lives on Base. We need UA to move
+value from chain X and call `createStipend`/`fund` on Base in one abstracted flow. Two ways,
+try in this order:
+  1. **UA transfer-and-call:** if the UA SDK supports routing value to a destination contract
+     call, target StipendVault.fund(id) on Base with USDC sourced cross-chain. Preferred —
+     single user action, true chain abstraction, best demo.
+  2. **UA deposit → then contract call:** if (1) isn't supported, use UA to bridge USDC to the
+     sender's UA balance on Base, then a second tx calls fund(id). Two steps but still
+     UA-powered and still cross-chain. Acceptable fallback.
+Confirm which the SDK supports early (Discord Q3 covers this). Do NOT block on the answer —
+test (1), fall back to (2) if it fails.
+
 **Tasks:**
-1. Magic login for sender → 7702-upgraded UA.
-2. UI: "Create Stipend" form (recipient, amount, frequency, total cap).
-3. Wire form → `createStipend` on the policy contract.
-4. Use Particle UA to source the value from any chain/token and settle to recipient's
-   chain (this satisfies the "at least one cross-chain operation via UA" requirement).
-5. "My Stipends" list: active rules, amount available, modify/revoke buttons.
-**DONE WHEN:** you can create a Stipend and execute at least ONE real cross-chain transfer
-end-to-end on **mainnet (Arb/ETH → Base via UA)**, visible in the UI, with a tx hash.
-**RESUME HERE NOTE:** _<fill in: which chains routed, tx hash, UI state>_
+1. Magic email login for sender → 7702-upgraded UA (reuse the ua-7702-magic-demo flow).
+2. "Create Stipend" form: recipient (email or address), token (USDC), amountPerPeriod,
+   periodSeconds (daily/weekly/monthly presets), totalCap, initial funding amount.
+   ZERO jargon — say "how much per week", "total budget", not "periodSeconds"/"cap".
+3. On submit: UA sources the funding amount from the sender's balance on Arb/ETH and lands it
+   in StipendVault on Base via createStipend/fund. Show the cross-chain route resolving in UI.
+4. "My Stipends" dashboard: list active rules with amount available this period, total
+   remaining, top-up / modify / revoke buttons. Revoke shows the refund landing back.
+5. Capture the funding tx hash + cross-chain route for the demo/README.
+
+**DONE WHEN:** sender creates a Stipend funded by a REAL cross-chain UA transfer
+(Arb/ETH → Base, mainnet), the funds are custodied in StipendVault, and the dashboard shows
+the active rule. Record the tx hash + which route worked (mechanic 1 or 2) in PROGRESS LOG.
+**RESUME HERE NOTE:** _Frontend BUILT + compiles green (`npx next build`); **live cross-chain
+funding test PENDING** — blocked on (a) StipendVault deploy (Phase 2 box) and (b) Magic/Particle
+keys in `.env.local`. Next.js App Router app at repo root: `app/` (landing/create/dashboard) +
+`src/` (providers/lib/components). Mechanic 1 CONFIRMED SUPPORTED in SDK typings:
+`createUniversalTransaction({chainId, expectTokens, transactions})` → approve+createStipend in
+one cross-chain flow (implemented in `src/providers/UAProvider.tsx`). Dashboard reads via
+localStorage ids + StipendCreated log recovery; revoke + top-up wired through UA. To go live:
+(1) deploy contract, put address in `.env.local` `NEXT_PUBLIC_STIPEND_VAULT_ADDRESS` (+
+`NEXT_PUBLIC_VAULT_DEPLOY_BLOCK` for log recovery); (2) fill Magic/Particle keys; (3) run
+`pnpm dev`, login, create+fund a real stipend Arb/ETH→Base; (4) record tx hash here + check box._
+
+**PHASE 3 CURSOR PROMPT (paste when Phase 2 contract is deployed):**
+```
+Read STIPEND_BUILD.md fully. Phase 2 StipendVault is deployed on Base (address in .env).
+Starting PHASE 3: sender flow + UA cross-chain funding.
+
+Base the app on the ua-7702-magic-demo reference (Magic email login → 7702 UA). Build in the
+Next.js App Router frontend:
+
+1. A "Create Stipend" page with a jargon-free form: recipient (email or 0x address), amount
+   per period, period (daily/weekly/monthly buttons), total budget, initial funding amount.
+   Map friendly inputs to contract params (weekly = 604800 periodSeconds, etc).
+
+2. On submit, use the Particle Universal Accounts SDK to fund StipendVault on Base with USDC
+   sourced cross-chain from the sender's balance on Arbitrum or Ethereum. FIRST try a UA
+   transfer-that-targets-a-destination-contract-call (route value + call StipendVault.fund(id)
+   on Base in one flow). IF the SDK doesn't support transfer-and-call, FALL BACK to: UA bridges
+   USDC to the sender's UA balance on Base, then a second call invokes createStipend/fund.
+   Log clearly in the UI which path executed and show the cross-chain route resolving.
+
+3. A "My Stipends" dashboard reading from StipendVault: active policies, available-this-period,
+   total remaining, with top-up / modify / revoke actions wired to the contract.
+
+Keep all user-facing copy jargon-free (no "EOA", "delegation", "periodSeconds"). Use viem for
+contract reads/writes. Do NOT hardcode secrets — read from .env, dedicated dev wallet only.
+
+When a real cross-chain funding tx lands on Base mainnet and the dashboard shows the active
+Stipend, update the PHASE 3 RESUME NOTE + PROGRESS LOG with the tx hash and which UA mechanic
+worked. Do not start Phase 4 until this is green.
+```
 
 ---
 
@@ -223,7 +284,17 @@ end-to-end on **mainnet (Arb/ETH → Base via UA)**, visible in the UI, with a t
    call that would exceed the cap. Show a blocked call in the demo — that's the wow.
 **DONE WHEN:** agent makes several successful paid calls, then a call that exceeds the cap
 is rejected ON-CHAIN by the policy contract, all visible in the UI.
-**RESUME HERE NOTE:** _<fill in: endpoint URL, agent script path, cap-block demonstrated y/n>_
+**RESUME HERE NOTE:** _Code BUILT + compiles green; **live run PENDING** (needs vault deploy +
+`AGENT_PRIVATE_KEY` + `NEXT_PUBLIC_SERVICE_ADDRESS` in `.env.local`, agent wallet needs
+~0.0005 ETH on Base gas). Design: stipend recipient = the paid service's address; agent is an
+`approveAgent`-approved claimer → vault pays the service DIRECTLY per call; agent never
+custodies funds. Endpoints: `/api/research` (x402-style: 402 + price/payTo unpaid → verifies
+Claimed event on Base via `X-Payment-Tx` header, replay-protected), `/api/agent/step`
+(server-side agent wallet: quote → simulate+claim → retry with proof; decodes custom errors
+so OverPeriodCap/OverTotalCap render as "BLOCKED ON-CHAIN"), `/api/agent/info`. UI: `/agent`
+(approve agent, run calls, live activity log, budget readout), `/claim` (recipient views
+stipends addressed to them via logs, claims via UA — gasless for them). Demo script: create
+stipend w/ recipient=service, approve agent, run calls until the over-cap call reverts._
 
 ---
 
@@ -279,6 +350,67 @@ rewards UX polish.
 ## PROGRESS LOG (append every session — newest at top)
 <!-- FORMAT: [DATE] Phase X — what got done, what's blocking, exact next step -->
 
+- [THU-Jul9] Phase 4 code COMPLETE (live run pending) + keys wired — `.env.local` now has
+  Magic pk + Particle project/client/app ids (user created dashboards; Particle app domain
+  registered as stipend.vercel.app — add localhost if origin errors appear). App boots clean
+  with real keys. Built the AGENT HERO SCENE: x402-style paid API (`/api/research`, 402 →
+  on-chain payment verification via Claimed event), server-side agent runner
+  (`/api/agent/step`, simulate-first so policy reverts decode to named errors), `/agent`
+  demo page (activity log + budget bar + BLOCKED-ON-CHAIN moment), `/claim` recipient page
+  (log-scan by recipient, gasless claim via UA). Architecture: stipend recipient = service
+  address, agent approved via approveAgent → vault pays service directly, agent never holds
+  funds. UAProvider gained claimStipend + approveAgentOnStipend. Build green, all routes
+  verified rendering. REMAINING TO GO LIVE (user): (1) deploy vault (funded dev wallet →
+  `contracts/.env` → deploy.ps1), (2) `AGENT_PRIVATE_KEY` (fresh key, ~0.0005 ETH Base) +
+  `NEXT_PUBLIC_SERVICE_ADDRESS` in `.env.local`, (3) email login test, (4) live cross-chain
+  create+fund → record tx. Timeline to Jul 19: live e2e by Jul 12, polish Jul 13–15,
+  submission assets Jul 16–18.
+
+- [WED-Jul8] Workshop video intel + SDK v2 upgrade — User watched the Particle kickoff
+  workshop (Davide Zambiasi). His template repo `soos3d/workshop-demo-02` cloned to
+  `reference/workshop-demo-02`. VALIDATIONS: (a) our two-provider architecture (Magic +
+  UA) is exactly the workshop's blessed pattern; (b) closing slide says "swap the target:
+  createTransferTransaction()/createUniversalTransaction()" → our mechanic-1 transfer-and-
+  call is the officially endorsed extension point; (c) "swap the wallet → straight at the
+  bounties" confirms Magic-signer = Magic bonus play. CHANGES MADE: upgraded app to UA SDK
+  **v2.0.3** (workshop version; v1→v2 drop-in for our APIs — only `universalGas` removed
+  from ITradeConfig; bundle −114 kB), added `undelegate()` to UAProvider (zero-address
+  authorization reverts EOA to plain wallet — reversibility talking point + Phase 5 UI
+  candidate). Build green, UI verified, no console errors. `docs/eip7702-delegation-guide.md`
+  in the workshop repo is the canonical write-up of the delegation flow (incl. the
+  nonce+1 and personal_sign-over-rootHash gotchas we already handle). STILL BLOCKING LIVE
+  TEST: contract deploy (funded dev wallet) + Magic/Particle keys in `.env.local`.
+
+- [SUN-Jul5] Phase 3 frontend BUILT — Next.js 14 App Router app scaffolded at repo root
+  (pnpm; magic-sdk + @magic-ext/evm + UA SDK + viem + ethers + tailwind). Pages: landing
+  (email login), /create (jargon-free form → UA cross-chain funding), /dashboard (live
+  policy reads, top-up, revoke-with-refund). Providers ported from reference demo
+  (`src/providers/MagicProvider.tsx`, `UAProvider.tsx` — 7702 mode, ensureDelegated,
+  signAndSend). ABI auto-generated from forge output (`src/lib/abi.ts`). KEY FINDING:
+  UA SDK supports MECHANIC 1 (transfer-and-call) — `createUniversalTransaction` takes
+  `expectTokens` + arbitrary `transactions[]` on the destination chain, so approve +
+  createStipend execute atomically with USDC sourced cross-chain. Implemented for create,
+  fund (top-up), and revoke. Build green; UI verified rendering in browser (no console
+  errors). TS gotcha solved: UA SDK package.json exports lacks `types` condition → fixed
+  via tsconfig `paths` mapping to its dist/index.d.ts. STILL BLOCKING LIVE TEST: contract
+  deploy (needs funded dev wallet in `contracts/.env`) + Magic/Particle dashboard keys in
+  `.env.local`. Mid-hackathon checkpoint due TONIGHT 23:59 — submit progress write-up.
+  Next: user funds wallet → deploy → live cross-chain funding tx → record hash.
+
+- [SAT-2] Phase 2 deploy prep — Wrote `contracts/script/Deploy.s.sol` + `contracts/deploy.ps1`,
+  added Base RPC/etherscan to `foundry.toml`, created `contracts/.env.example` + root
+  `.env.example` (USDC `0x833589…2913` on Base). Script simulates successfully on Base mainnet
+  (chain 8453). **Broadcast blocked:** no `contracts/.env` with funded dev wallet PRIVATE_KEY.
+  Next: user creates `contracts/.env`, runs `.\deploy.ps1` from `contracts/`, records address,
+  checks Phase 2 box, starts Phase 3.
+- [FRI-2] TRACK DECISION: registered for General + Magic + UA on the platform, but General and
+  UA are MUTUALLY EXCLUSIVE main tracks ("submit to one main track"). COMMITTING: Universal
+  Accounts Track as sole main track + Magic Labs bonus. Drop General (and its Openfort/ZeroDev
+  subtracks) — they'd require 3 sponsor stacks and dilute the build. Keep x402 in the agent
+  scene as a DESIGN element for pitch language, NOT as an Openfort subtrack entry (Openfort
+  subtrack needs Openfort backend wallets, conflicts with the Magic-onboards-everyone story).
+  Max stack: $2,500 UA 1st + $500 Magic = $3,000 + Particle incubation candidacy.
+  Phase 3 spec expanded with UA cross-chain funding mechanic + Cursor prompt.
 - [SAT] Phase 2 (PLAN B) — Scaffolded Foundry project at `contracts/` using **Soldeer** (no git
   submodules — deps vendored under `contracts/dependencies/`: OZ 5.1.0 + forge-std 1.9.5). Wrote
   `src/StipendVault.sol`: custody-based enforcement (createStipend/fund/claim/revoke/modify/

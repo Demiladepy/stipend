@@ -61,3 +61,6 @@ build/
 .DS_Store
 Thumbs.db
 *.log
+
+# Reference clones (public repos, re-clone from GitHub)
+reference/workshop-demo-02/
