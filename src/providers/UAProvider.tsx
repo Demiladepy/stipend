@@ -56,6 +56,12 @@ type UAContextType = {
   fundStipendCrossChain: (id: `0x${string}`, amount: string) => Promise<string>;
   revokeStipend: (id: `0x${string}`) => Promise<string>;
   claimStipend: (id: `0x${string}`, amount: string) => Promise<string>;
+  modifyStipend: (
+    id: `0x${string}`,
+    amountPerPeriod: string,
+    periodSeconds: number,
+    totalCap: string,
+  ) => Promise<string>;
   approveAgentOnStipend: (
     id: `0x${string}`,
     agent: `0x${string}`,
@@ -362,6 +368,35 @@ export function UAProvider({ children }: { children: ReactNode }) {
     [universalAccount, signAndSend],
   );
 
+  const modifyStipend = useCallback(
+    async (
+      id: `0x${string}`,
+      amountPerPeriod: string,
+      periodSeconds: number,
+      totalCap: string,
+    ): Promise<string> => {
+      if (!universalAccount) throw new Error('Log in first');
+      const modifyData = encodeFunctionData({
+        abi: stipendVaultAbi,
+        functionName: 'modify',
+        args: [
+          id,
+          parseUnits(amountPerPeriod, USDC_DECIMALS),
+          BigInt(periodSeconds),
+          parseUnits(totalCap, USDC_DECIMALS),
+        ],
+      });
+      const tx = await universalAccount.createUniversalTransaction({
+        chainId: BASE_CHAIN_ID,
+        expectTokens: [],
+        transactions: [{ to: VAULT_ADDRESS, data: modifyData }],
+      });
+      const { transactionId } = await signAndSend(tx);
+      return transactionId;
+    },
+    [universalAccount, signAndSend],
+  );
+
   const approveAgentOnStipend = useCallback(
     async (id: `0x${string}`, agent: `0x${string}`): Promise<string> => {
       if (!universalAccount) throw new Error('Log in first');
@@ -394,6 +429,7 @@ export function UAProvider({ children }: { children: ReactNode }) {
       fundStipendCrossChain,
       revokeStipend,
       claimStipend,
+      modifyStipend,
       approveAgentOnStipend,
     }),
     [
@@ -408,6 +444,7 @@ export function UAProvider({ children }: { children: ReactNode }) {
       fundStipendCrossChain,
       revokeStipend,
       claimStipend,
+      modifyStipend,
       approveAgentOnStipend,
     ],
   );

@@ -7,6 +7,13 @@ export const metadata: Metadata = {
   title: 'Stipend — money with rules built in',
   description:
     'Set a rule — who, how much, how often — and your wallet enforces it on-chain. No bank, no middleman, no way around it.',
+  openGraph: {
+    title: 'Stipend — money with rules built in',
+    description:
+      'Wallet-enforced budgets for people and AI agents. Fund from any chain, revoke any time, enforced on-chain on Base.',
+    siteName: 'Stipend',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

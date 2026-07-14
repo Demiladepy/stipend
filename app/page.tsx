@@ -85,7 +85,25 @@ export default function Home() {
           )}
         </div>
 
-        <div className="mt-20 grid gap-4 sm:grid-cols-3">
+        <div className="mt-16 grid gap-3 sm:grid-cols-3">
+          {[
+            ['1', 'Set the rule', 'Who, how much, how often, hard limit. Plain words, no jargon.'],
+            ['2', 'Fund from anywhere', 'Your money routes itself — any chain, one signature.'],
+            ['3', 'The chain enforces it', 'Overspends revert. Revoke refunds. No middleman to ask.'],
+          ].map(([n, t, b]) => (
+            <div key={n} className="flex items-start gap-3 rounded-2xl border border-edge/60 p-4">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent font-mono text-sm font-bold text-ink">
+                {n}
+              </span>
+              <div>
+                <p className="text-sm font-semibold">{t}</p>
+                <p className="mt-1 text-xs text-zinc-500">{b}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-16 grid gap-4 sm:grid-cols-3">
           {[
             {
               title: 'AI agent budgets',
@@ -106,6 +124,25 @@ export default function Home() {
             </div>
           ))}
         </div>
+
+        <footer className="mt-24 border-t border-edge/60 pt-6 text-xs text-zinc-600">
+          <p>
+            Wallet-enforced delegation — not vault-based streaming. Rules are
+            enforced on-chain on Base; funding routes cross-chain via your
+            Universal Account.
+          </p>
+          <p className="mt-1">
+            <a
+              className="underline hover:text-zinc-400"
+              href="https://github.com/Demiladepy/stipend"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub
+            </a>{' '}
+            · UXmaxx Hackathon 2026
+          </p>
+        </footer>
       </section>
     </main>
   );

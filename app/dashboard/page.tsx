@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { parseAbiItem } from 'viem';
 import { Header } from '@/components/Header';
-import { periodLabel, VAULT_ADDRESS } from '@/lib/config';
+import { PERIOD_PRESETS, periodLabel, VAULT_ADDRESS } from '@/lib/config';
 import { loadStipends, saveStipend } from '@/lib/store';
 import {
   fmtUsdc,
@@ -28,8 +28,14 @@ const createdEvent = parseAbiItem(
 
 export default function DashboardPage() {
   const { userAddress } = useMagic();
-  const { revokeStipend, fundStipendCrossChain, ensureDelegated } =
-    useUniversalAccount();
+  const {
+    revokeStipend,
+    fundStipendCrossChain,
+    modifyStipend,
+    ensureDelegated,
+    undelegate,
+    isDelegated,
+  } = useUniversalAccount();
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +43,10 @@ export default function DashboardPage() {
   const [notice, setNotice] = useState('');
   const [topUpFor, setTopUpFor] = useState<`0x${string}` | null>(null);
   const [topUpAmount, setTopUpAmount] = useState('');
+  const [editFor, setEditFor] = useState<`0x${string}` | null>(null);
+  const [editPerPeriod, setEditPerPeriod] = useState('');
+  const [editPeriodSeconds, setEditPeriodSeconds] = useState(604_800);
+  const [editTotalCap, setEditTotalCap] = useState('');
 
   const refresh = useCallback(async () => {
     if (!userAddress || !VAULT_ADDRESS) {
@@ -133,6 +143,35 @@ export default function DashboardPage() {
     }
   };
 
+  const openEditor = (row: Row) => {
+    setEditFor(row.id);
+    setEditPerPeriod((Number(row.policy.amountPerPeriod) / 1e6).toString());
+    setEditPeriodSeconds(Number(row.policy.periodSeconds));
+    setEditTotalCap((Number(row.policy.totalCap) / 1e6).toString());
+  };
+
+  const onModify = async (id: `0x${string}`) => {
+    if (!editPerPeriod || !editTotalCap) return;
+    setBusy(id);
+    setNotice('');
+    try {
+      await ensureDelegated();
+      const txId = await modifyStipend(
+        id,
+        editPerPeriod,
+        editPeriodSeconds,
+        editTotalCap,
+      );
+      setNotice(`Rule updated on-chain. (tx ${txId.slice(0, 10)}…)`);
+      setEditFor(null);
+      await refresh();
+    } catch (e: any) {
+      setNotice(e?.message || 'Could not update the rule');
+    } finally {
+      setBusy('');
+    }
+  };
+
   if (!userAddress) {
     return (
       <main>
@@ -222,7 +261,64 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {!policy.revoked && (
+                {!policy.revoked && editFor === id && (
+                  <div className="mt-4 space-y-3 rounded-xl border border-edge bg-ink p-4">
+                    <p className="label">Change the rule</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="label">How much (USDC)</label>
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          value={editPerPeriod}
+                          onChange={(e) => setEditPerPeriod(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">How often</label>
+                        <div className="flex gap-1.5">
+                          {PERIOD_PRESETS.map((p) => (
+                            <button
+                              key={p.seconds}
+                              type="button"
+                              onClick={() => setEditPeriodSeconds(p.seconds)}
+                              className={`btn flex-1 px-2 py-2 text-xs ${
+                                editPeriodSeconds === p.seconds
+                                  ? 'bg-accent text-ink'
+                                  : 'border border-edge text-zinc-400 hover:border-zinc-500'
+                              }`}
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="label">Total budget (USDC)</label>
+                      <input
+                        className="input"
+                        inputMode="decimal"
+                        value={editTotalCap}
+                        onChange={(e) => setEditTotalCap(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        className="btn-primary"
+                        disabled={busy === id}
+                        onClick={() => onModify(id)}
+                      >
+                        {busy === id ? 'Updating…' : 'Save new rule'}
+                      </button>
+                      <button className="btn-ghost" onClick={() => setEditFor(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!policy.revoked && editFor !== id && (
                   <div className="mt-4 flex flex-wrap items-center gap-2">
                     {topUpFor === id ? (
                       <>
@@ -257,6 +353,13 @@ export default function DashboardPage() {
                           Top up
                         </button>
                         <button
+                          className="btn-ghost"
+                          disabled={!!busy}
+                          onClick={() => openEditor({ id, policy, available })}
+                        >
+                          Change rule
+                        </button>
+                        <button
                           className="btn-danger"
                           disabled={!!busy}
                           onClick={() => onRevoke(id)}
@@ -271,6 +374,40 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+
+        <div className="mt-12 rounded-2xl border border-edge/60 p-5">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
+            Your wallet, your exit
+          </p>
+          <p className="mt-2 text-sm text-zinc-500">
+            Stipend upgraded your wallet in place — same address, same keys.
+            The upgrade is fully reversible: detach it and you&apos;re back to a
+            plain wallet. Your stipends keep working either way, because the
+            rules live in the contract that holds the money, not in your wallet.
+          </p>
+          <button
+            className="btn-ghost mt-3 text-xs"
+            disabled={!isDelegated || !!busy}
+            onClick={async () => {
+              setBusy('undelegate');
+              setNotice('');
+              try {
+                await undelegate();
+                setNotice('Wallet upgrade detached — you are back to a plain wallet.');
+              } catch (e: any) {
+                setNotice(e?.message || 'Could not detach');
+              } finally {
+                setBusy('');
+              }
+            }}
+          >
+            {busy === 'undelegate'
+              ? 'Detaching…'
+              : isDelegated
+                ? 'Detach wallet upgrade'
+                : 'No upgrade attached'}
+          </button>
+        </div>
       </section>
     </main>
   );

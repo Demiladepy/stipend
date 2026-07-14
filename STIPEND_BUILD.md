@@ -350,6 +350,20 @@ rewards UX polish.
 ## PROGRESS LOG (append every session — newest at top)
 <!-- FORMAT: [DATE] Phase X — what got done, what's blocking, exact next step -->
 
+- [TUE-Jul14] Phase 5 partial + README + modify — Wrote the full README (wallet-enforced
+  line up top, mermaid architecture, contract table, env table, 90-sec demo script, prize
+  mapping, roadmap incl. Mezo/7702-everywhere line). Added the missing `modify` action
+  (UAProvider.modifyStipend + inline "Change rule" editor on dashboard — spec Phase 3
+  required top-up/modify/revoke). Added undelegate to dashboard ("Your wallet, your exit"
+  — reversibility demo point). Landing: 3-step how-it-works strip + footer with pitch line
+  + GitHub link. App icon (S-mark) + OG metadata. Build green, all pages verified, no
+  console errors. Committed + pushed. **5 days left. STILL USER-BLOCKED (unchanged since
+  Jul 9): (1) vault deploy — contracts/.env with funded dev wallet (~0.002 ETH Base) then
+  deploy.ps1; (2) AGENT_PRIVATE_KEY + NEXT_PUBLIC_SERVICE_ADDRESS in .env.local; (3) first
+  email login test. Until (1) lands nothing can run live — this is THE critical path.**
+  Remaining after that: live e2e + tx hashes → Vercel deploy → Magic dashboard branding →
+  video + deck → submit by Jul 18.
+
 - [THU-Jul9] Phase 4 code COMPLETE (live run pending) + keys wired — `.env.local` now has
   Magic pk + Particle project/client/app ids (user created dashboards; Particle app domain
   registered as stipend.vercel.app — add localhost if origin errors appear). App boots clean
