@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { parseAbiItem } from 'viem';
 import { Header } from '@/components/Header';
+import { DebugPanel } from '@/components/DebugPanel';
 import { PERIOD_PRESETS, periodLabel, VAULT_ADDRESS } from '@/lib/config';
 import { loadStipends, saveStipend } from '@/lib/store';
 import {
@@ -13,7 +14,7 @@ import {
   publicClient,
   type PolicyView,
 } from '@/lib/vault';
-import { useMagic } from '@/providers/MagicProvider';
+import { useAuth } from '@/providers/AuthProvider';
 import { useUniversalAccount } from '@/providers/UAProvider';
 
 type Row = {
@@ -27,15 +28,9 @@ const createdEvent = parseAbiItem(
 );
 
 export default function DashboardPage() {
-  const { userAddress } = useMagic();
-  const {
-    revokeStipend,
-    fundStipendCrossChain,
-    modifyStipend,
-    ensureDelegated,
-    undelegate,
-    isDelegated,
-  } = useUniversalAccount();
+  const { userAddress } = useAuth();
+  const { revokeStipend, fundStipendCrossChain, modifyStipend } =
+    useUniversalAccount();
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,7 +109,6 @@ export default function DashboardPage() {
     setBusy(id);
     setNotice('');
     try {
-      await ensureDelegated();
       const txId = await revokeStipend(id);
       setNotice(`Stipend stopped — refund on its way. (tx ${txId.slice(0, 10)}…)`);
       await refresh();
@@ -130,7 +124,6 @@ export default function DashboardPage() {
     setBusy(id);
     setNotice('');
     try {
-      await ensureDelegated();
       const txId = await fundStipendCrossChain(id, topUpAmount);
       setNotice(`Top-up routed. (tx ${txId.slice(0, 10)}…)`);
       setTopUpFor(null);
@@ -155,7 +148,6 @@ export default function DashboardPage() {
     setBusy(id);
     setNotice('');
     try {
-      await ensureDelegated();
       const txId = await modifyStipend(
         id,
         editPerPeriod,
@@ -377,38 +369,16 @@ export default function DashboardPage() {
 
         <div className="mt-12 rounded-2xl border border-edge/60 p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
-            Your wallet, your exit
+            Your wallet, upgraded in place
           </p>
           <p className="mt-2 text-sm text-zinc-500">
-            Stipend upgraded your wallet in place — same address, same keys.
-            The upgrade is fully reversible: detach it and you&apos;re back to a
-            plain wallet. Your stipends keep working either way, because the
+            Same address, same keys — and the upgrade is reversible by design
+            (EIP-7702). Your stipends keep working either way, because the
             rules live in the contract that holds the money, not in your wallet.
           </p>
-          <button
-            className="btn-ghost mt-3 text-xs"
-            disabled={!isDelegated || !!busy}
-            onClick={async () => {
-              setBusy('undelegate');
-              setNotice('');
-              try {
-                await undelegate();
-                setNotice('Wallet upgrade detached — you are back to a plain wallet.');
-              } catch (e: any) {
-                setNotice(e?.message || 'Could not detach');
-              } finally {
-                setBusy('');
-              }
-            }}
-          >
-            {busy === 'undelegate'
-              ? 'Detaching…'
-              : isDelegated
-                ? 'Detach wallet upgrade'
-                : 'No upgrade attached'}
-          </button>
         </div>
       </section>
+      <DebugPanel />
     </main>
   );
 }

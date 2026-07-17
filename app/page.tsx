@@ -1,29 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import { Header } from '@/components/Header';
-import { useMagic } from '@/providers/MagicProvider';
+import { DebugPanel } from '@/components/DebugPanel';
+import { useAuth } from '@/providers/AuthProvider';
 
 export default function Home() {
-  const { userAddress, login, loggingIn, magic } = useMagic();
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
+  const { userAddress, login, ready } = useAuth();
   const router = useRouter();
-
-  const handleLogin = async () => {
-    setError('');
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
-      setError('Enter a valid email');
-      return;
-    }
-    try {
-      await login(email);
-      router.push('/dashboard');
-    } catch (e: any) {
-      setError(e?.message || 'Login failed — try again');
-    }
-  };
 
   return (
     <main>
@@ -59,28 +43,16 @@ export default function Home() {
             </div>
           ) : (
             <div className="card">
-              <label className="label" htmlFor="email">
+              <label className="label">
                 Sign in with email — no seed phrase, no extension
               </label>
-              <div className="flex gap-2">
-                <input
-                  id="email"
-                  className="input"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                  disabled={loggingIn}
-                />
-                <button
-                  className="btn-primary shrink-0"
-                  onClick={handleLogin}
-                  disabled={loggingIn || !magic}
-                >
-                  {loggingIn ? 'Check your inbox…' : 'Continue'}
-                </button>
-              </div>
-              {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+              <button
+                className="btn-primary w-full"
+                onClick={() => login()}
+                disabled={!ready}
+              >
+                {ready ? 'Continue with email' : 'Loading…'}
+              </button>
             </div>
           )}
         </div>
@@ -144,6 +116,7 @@ export default function Home() {
           </p>
         </footer>
       </section>
+      <DebugPanel />
     </main>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMagic } from '@/providers/MagicProvider';
+import { useAuth } from '@/providers/AuthProvider';
 import { useUniversalAccount } from '@/providers/UAProvider';
 
 function short(addr: string) {
@@ -9,7 +9,7 @@ function short(addr: string) {
 }
 
 export function Header() {
-  const { userAddress, logout } = useMagic();
+  const { userAddress, email, logout } = useAuth();
   const { primaryAssets } = useUniversalAccount();
 
   return (
@@ -39,9 +39,9 @@ export function Header() {
                 </span>
               )}
               <button
-                onClick={logout}
+                onClick={() => logout()}
                 className="text-xs text-zinc-500 hover:text-zinc-200"
-                title={userAddress}
+                title={email ?? userAddress}
               >
                 {short(userAddress)} · sign out
               </button>

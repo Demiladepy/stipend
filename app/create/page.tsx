@@ -6,15 +6,14 @@ import { isAddress } from 'viem';
 import { Header } from '@/components/Header';
 import { PERIOD_PRESETS } from '@/lib/config';
 import { saveStipend } from '@/lib/store';
-import { useMagic } from '@/providers/MagicProvider';
+import { useAuth } from '@/providers/AuthProvider';
 import { useUniversalAccount } from '@/providers/UAProvider';
 
-type Step = 'form' | 'delegating' | 'routing' | 'done';
+type Step = 'form' | 'routing' | 'done';
 
 export default function CreatePage() {
-  const { userAddress } = useMagic();
-  const { ensureDelegated, createStipendCrossChain, refreshBalance } =
-    useUniversalAccount();
+  const { userAddress } = useAuth();
+  const { createStipendCrossChain, refreshBalance } = useUniversalAccount();
 
   const [recipient, setRecipient] = useState('');
   const [perPeriod, setPerPeriod] = useState('');
@@ -48,9 +47,6 @@ export default function CreatePage() {
     }
     setError('');
     try {
-      setStep('delegating');
-      await ensureDelegated();
-
       setStep('routing');
       const res = await createStipendCrossChain({
         recipient: recipient as `0x${string}`,
@@ -218,7 +214,6 @@ export default function CreatePage() {
               disabled={step !== 'form'}
             >
               {step === 'form' && 'Create & fund'}
-              {step === 'delegating' && 'Preparing your wallet (one-time setup)…'}
               {step === 'routing' && 'Routing your money across chains…'}
             </button>
             {step === 'routing' && (

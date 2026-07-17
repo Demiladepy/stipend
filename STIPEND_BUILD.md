@@ -33,9 +33,9 @@ tips that revoke instantly at wallet layer; (3) **allowance** — parent→stude
 - Framework: **Next.js (App Router) + TypeScript**
 - Chain lib: **viem** (+ wagmi if needed for React hooks)
 - Chain abstraction: **Particle Universal Accounts SDK in EIP-7702 mode**
-- Recipient onboarding / signer: **Magic embedded wallet** (`sign7702Authorization`,
-  `send7702Transaction`)
-- Sender auth in reference demo uses Privy; we use **Magic** to also qualify for Magic bonus
+- Onboarding / signer: **Privy embedded wallet** (`@privy-io/react-auth` — email OTP,
+  `useSign7702Authorization` for inline 7702 auths, `useSignMessage` for rootHash).
+  **MAGIC IS DROPPED (Jul 14): paywall + unresponsive team. Magic bonus no longer targeted.**
 - Routing under UA: **LI.FI** (as used in Particle's 7702 reference repo)
 - Policy enforcement: **custom Stipend delegation-target contract** (Solidity, Foundry)
 - Agent scene: a minimal **x402-payable endpoint** the agent calls
@@ -98,16 +98,20 @@ cross-chain route (that's the UA Track requirement).
    deploy through Particle's UA delegate and enforce policy differently).
 **DONE WHEN:** you have a local app where a Magic email login controls a 7702 UA, and you've
 written the supported-chain intersection + the arbitrary-target answer into the PROGRESS LOG.
-**RESUME HERE NOTE:** _Clone/install/build/dev ✅ in `reference/ua-7702-magic-demo/ua-7702-demo`
-(run `pnpm run dev` → localhost:3000). Chain config now LOCKED (see §1): mainnet EVM triangle
-ETH/Arb/Base, contract on Base 8453. Arbitrary-target: SDK accepts any address, no client-side
-whitelist found in magic-sdk bundle; **live sign-only test still PENDING** — needs Magic +
-Particle keys in `.env`, then click "Phase 1: test arbitrary delegate target" on the Delegation
-card (button already added to reference demo). Full write-up: `reference/PHASE1_REPORT.md`.
-Also PENDING: Particle DevRel on-chain-enforcement question (see ARCHITECTURE DECISION). Given
-the mainnet/enforcement pivot to PLAN B (custody), the Magic arbitrary-target answer is no
-longer blocking for Phase 2 — but still record it. **Next:** fill `.env`, run live login →
-delegate on Base → arbitrary-target test, log pass/fail, then check this box._
+**RESUME HERE NOTE:** _**PIVOTED TO PRIVY (Jul 14)** — Magic dropped (paywall + unresponsive).
+Privy wired per `reference/universal-accounts-7702` (Particle's own Privy repo, cloned):
+PrivyProvider (email login, embedded wallet createOnLogin all-users) → AuthProvider →
+UAProvider. KEY SIMPLIFICATION vs Magic: NO pre-delegation tx — Privy's
+`useSign7702Authorization().signAuthorization` signs auths INLINE per userOp
+(`eip7702Auth && !eip7702Delegated`), serialized via ethers `Signature.from({r,s,v ??
+BigInt(yParity), yParity})`; rootHash signed with Privy `useSignMessage`; Particle broadcasts
+the Type-4. `ensureDelegated`/`undelegate` removed (Magic-only plumbing). Debug panel
+(`src/components/DebugPanel.tsx`, on / and /dashboard, hide via NEXT_PUBLIC_SHOW_DEBUG=0)
+shows email/EOA/7702-status/UA balance. Build green; guard screen verified when app id
+missing. **LIVE GATE STILL PENDING — needs user: create Privy app (dashboard.privy.io →
+enable Email + embedded wallets) → NEXT_PUBLIC_PRIVY_APP_ID in .env.local → real login →
+confirm EOA + UA balance in debug panel. Then check this box.** Old Magic arbitrary-target
+question is MOOT (Privy signs arbitrary targets; enforcement is Plan B anyway)._
 
 ---
 
@@ -336,7 +340,8 @@ rewards UX polish.
 
 ## PRIZE TARGETS
 - PRIMARY: Universal Accounts Track — 1st ($2,500)
-- BONUS: Magic Labs challenge ($500)
+- ~~BONUS: Magic Labs challenge ($500)~~ DROPPED Jul 14 (Magic paywall + unresponsive team;
+  switched to Privy — same auth UX, same 7702 path, matches Particle's own reference repo)
 - Incubation candidacy: Particle (UA-Track winners considered)
 
 ## KEY DEADLINES (confirm against the live Encode page — these may have shifted)
@@ -349,6 +354,22 @@ rewards UX polish.
 
 ## PROGRESS LOG (append every session — newest at top)
 <!-- FORMAT: [DATE] Phase X — what got done, what's blocking, exact next step -->
+
+- [TUE-Jul14 #2] MAGIC → PRIVY PIVOT (full migration in one session) — Magic dropped
+  (paywall + unresponsive team; Magic bonus prize abandoned). Cloned Particle's own Privy
+  reference (`reference/universal-accounts-7702`) and mirrored its pattern exactly:
+  PrivyProvider (email OTP modal, embedded wallet on login, dark theme + accent) →
+  new `AuthProvider` (useAuth: email/EOA/login/logout) → UAProvider rewritten for INLINE
+  7702 auths (signAuthorization per userOp + signMessage over rootHash; ethers Signature
+  serialization with yParity). Deleted MagicProvider; removed ensureDelegated/undelegate
+  everywhere (not needed with Privy — Particle broadcasts Type-4 with inline auth). All 6
+  pages migrated; landing now opens Privy modal. Added `DebugPanel` (email, EOA, 7702
+  status, UA balance; NEXT_PUBLIC_SHOW_DEBUG=0 hides). Webpack: aliased Privy optional
+  deps (@stripe/crypto, @farcaster/mini-app-solana) to false. Build green; guard screen
+  verified. **PHASE 1 LIVE GATE now needs: Privy App ID (user creates at dashboard.privy.io,
+  Email + embedded wallets enabled) in .env.local, then real login → debug panel shows EOA
+  + UA balance. Vault deploy STILL pending (unchanged). Did Privy login work live: NOT YET
+  TESTED (no app id). Friction so far: none beyond optional-dep aliasing.**
 
 - [TUE-Jul14] Phase 5 partial + README + modify — Wrote the full README (wallet-enforced
   line up top, mermaid architecture, contract table, env table, 90-sec demo script, prize

@@ -6,7 +6,11 @@ import {
   SUPPORTED_TOKEN_TYPE,
   type IAssetsResponse,
 } from '@particle-network/universal-account-sdk';
-import { BrowserProvider, getBytes, Signature } from 'ethers';
+import {
+  useSign7702Authorization,
+  useSignMessage,
+} from '@privy-io/react-auth';
+import { Signature } from 'ethers';
 import {
   ReactNode,
   createContext,
@@ -25,7 +29,7 @@ import {
   VAULT_ADDRESS,
 } from '@/lib/config';
 import { computeStipendId, randomSalt } from '@/lib/vault';
-import { useMagic } from './MagicProvider';
+import { useAuth } from './AuthProvider';
 
 type CreateStipendInput = {
   recipient: `0x${string}`;
@@ -48,8 +52,6 @@ type UAContextType = {
   isDelegated: boolean;
   loading: boolean;
   refreshBalance: () => Promise<void>;
-  ensureDelegated: () => Promise<void>;
-  undelegate: () => Promise<void>;
   createStipendCrossChain: (
     input: CreateStipendInput,
   ) => Promise<CreateStipendResult>;
@@ -72,7 +74,10 @@ const UAContext = createContext<UAContextType>(null as any);
 export const useUniversalAccount = () => useContext(UAContext);
 
 export function UAProvider({ children }: { children: ReactNode }) {
-  const { magic, userAddress } = useMagic();
+  const { userAddress } = useAuth();
+  const { signAuthorization } = useSign7702Authorization();
+  const { signMessage } = useSignMessage();
+
   const [universalAccount, setUniversalAccount] =
     useState<UniversalAccount | null>(null);
   const [primaryAssets, setPrimaryAssets] = useState<IAssetsResponse | null>(
@@ -107,11 +112,15 @@ export function UAProvider({ children }: { children: ReactNode }) {
 
   const refreshDelegationStatus = useCallback(async () => {
     if (!universalAccount) return;
-    const deployments = await universalAccount.getEIP7702Deployments();
-    const baseDep = (deployments as any[]).find(
-      (d) => d.chainId === BASE_CHAIN_ID,
-    );
-    setIsDelegated(baseDep?.isDelegated ?? false);
+    try {
+      const deployments = await universalAccount.getEIP7702Deployments();
+      const baseDep = (deployments as any[]).find(
+        (d) => d.chainId === BASE_CHAIN_ID,
+      );
+      setIsDelegated(baseDep?.isDelegated ?? false);
+    } catch (err) {
+      console.warn('delegation status read failed:', err);
+    }
   }, [universalAccount]);
 
   useEffect(() => {
@@ -132,119 +141,74 @@ export function UAProvider({ children }: { children: ReactNode }) {
   const refreshBalance = useCallback(async () => {
     if (!universalAccount) return;
     setPrimaryAssets(await universalAccount.getPrimaryAssets());
-  }, [universalAccount]);
+    await refreshDelegationStatus();
+  }, [universalAccount, refreshDelegationStatus]);
 
-  const signEip7702Auth = useCallback(
-    async (contractAddress: string, chainId: number, nonce?: number) => {
-      if (!magic) throw new Error('Magic not ready');
-      return (magic as any).wallet.sign7702Authorization({
-        contractAddress,
-        chainId,
-        ...(nonce !== undefined && { nonce }),
-      });
-    },
-    [magic],
-  );
-
-  // Submit a Type-4 (EIP-7702) transaction from the EOA on Base.
-  // `resolveTarget(auth)` picks the delegation target: the UA implementation
-  // to delegate, or the zero address to undelegate. Magic cannot sign
-  // chain-agnostic chainId-0 authorizations, so delegation is chain-specific.
-  const submit7702Delegation = useCallback(
-    async (resolveTarget: (auth: any) => string) => {
-      if (!universalAccount || !magic || !userAddress) {
-        throw new Error('Log in first');
-      }
-      await (magic as any).evm.switchChain(BASE_CHAIN_ID);
-      const [auth] = await universalAccount.getEIP7702Auth([BASE_CHAIN_ID]);
-      const authorization = await signEip7702Auth(
-        resolveTarget(auth),
-        BASE_CHAIN_ID,
-        auth.nonce + 1,
-      );
-      await (magic as any).wallet.send7702Transaction({
-        to: userAddress,
-        data: '0x',
-        authorizationList: [authorization],
-      });
-      await refreshDelegationStatus();
-    },
-    [universalAccount, magic, userAddress, signEip7702Auth, refreshDelegationStatus],
-  );
-
-  const ensureDelegated = useCallback(async () => {
-    if (!universalAccount) throw new Error('Log in first');
-    const deployments = await universalAccount.getEIP7702Deployments();
-    const baseDep = (deployments as any[]).find(
-      (d) => d.chainId === BASE_CHAIN_ID,
-    );
-    if (!baseDep || baseDep.isDelegated) {
-      await refreshDelegationStatus();
-      return;
-    }
-    await submit7702Delegation((auth) => auth.address);
-  }, [universalAccount, refreshDelegationStatus, submit7702Delegation]);
-
-  // An authorization targeting the zero address clears the delegation,
-  // reverting the EOA to a plain wallet. Reversibility is part of the pitch.
-  const undelegate = useCallback(async () => {
-    if (!universalAccount) throw new Error('Log in first');
-    const deployments = await universalAccount.getEIP7702Deployments();
-    const baseDep = (deployments as any[]).find(
-      (d) => d.chainId === BASE_CHAIN_ID,
-    );
-    if (!baseDep || !baseDep.isDelegated) {
-      await refreshDelegationStatus();
-      return;
-    }
-    await submit7702Delegation(
-      () => '0x0000000000000000000000000000000000000000',
-    );
-  }, [universalAccount, refreshDelegationStatus, submit7702Delegation]);
-
-  const signAndSend = useCallback(
-    async (transaction: any): Promise<{ transactionId: string }> => {
-      if (!universalAccount || !magic || !userAddress) {
-        throw new Error('Log in first');
-      }
+  // Sign inline EIP-7702 authorizations for any userOp that needs one, using
+  // Privy's signAuthorization (no pre-delegation transaction needed — Particle
+  // broadcasts the Type-4 with the auth attached). Reference:
+  // reference/universal-accounts-7702/lib/eip7702.ts
+  const sign7702Auths = useCallback(
+    async (userOps: any[] | undefined) => {
+      if (!userOps || !userAddress) return [];
       const authorizations: { userOpHash: string; signature: string }[] = [];
       const nonceMap = new Map<number, string>();
 
-      if (transaction.userOps) {
-        for (const userOp of transaction.userOps) {
-          if (userOp.eip7702Auth && !userOp.eip7702Delegated) {
-            let serialized = nonceMap.get(userOp.eip7702Auth.nonce);
-            if (!serialized) {
-              const authorization = await signEip7702Auth(
-                userOp.eip7702Auth.address,
-                userOp.eip7702Auth.chainId || userOp.chainId,
-                userOp.eip7702Auth.nonce,
-              );
-              serialized = Signature.from({
-                r: authorization.r,
-                s: authorization.s,
-                v: authorization.v,
-              }).serialized;
-              nonceMap.set(userOp.eip7702Auth.nonce, serialized);
-            }
-            authorizations.push({
-              userOpHash: userOp.userOpHash,
-              signature: serialized,
+      for (const userOp of userOps) {
+        if (userOp.eip7702Auth && !userOp.eip7702Delegated) {
+          let serialized = nonceMap.get(userOp.eip7702Auth.nonce);
+          if (!serialized) {
+            const authorization = await signAuthorization(
+              {
+                contractAddress: userOp.eip7702Auth.address as `0x${string}`,
+                chainId: Number(
+                  userOp.eip7702Auth.chainId || userOp.chainId,
+                ),
+                nonce: userOp.eip7702Auth.nonce,
+              },
+              { address: userAddress },
+            );
+            const sig = Signature.from({
+              r: authorization.r,
+              s: authorization.s,
+              v: authorization.v ?? BigInt(authorization.yParity),
+              yParity: authorization.yParity as 0 | 1,
             });
+            serialized = sig.serialized;
+            nonceMap.set(userOp.eip7702Auth.nonce, serialized);
           }
+          authorizations.push({
+            userOpHash: userOp.userOpHash,
+            signature: serialized,
+          });
         }
       }
+      return authorizations;
+    },
+    [signAuthorization, userAddress],
+  );
 
-      const provider = new BrowserProvider((magic as any).rpcProvider);
-      const signer = await provider.getSigner();
-      const signature = await signer.signMessage(getBytes(transaction.rootHash));
+  const signAndSend = useCallback(
+    async (transaction: any): Promise<{ transactionId: string }> => {
+      if (!universalAccount || !userAddress) throw new Error('Log in first');
+
+      const authorizations = await sign7702Auths(transaction.userOps);
+
+      const { signature } = await signMessage(
+        { message: transaction.rootHash },
+        {
+          address: userAddress,
+          uiOptions: { title: 'Confirm with Stipend' },
+        },
+      );
+
       return universalAccount.sendTransaction(
         transaction,
         signature,
         authorizations.length > 0 ? authorizations : undefined,
       );
     },
-    [universalAccount, magic, userAddress, signEip7702Auth],
+    [universalAccount, userAddress, sign7702Auths, signMessage],
   );
 
   // MECHANIC 1 (transfer-and-call): one universal transaction sources USDC
@@ -423,8 +387,6 @@ export function UAProvider({ children }: { children: ReactNode }) {
       isDelegated,
       loading,
       refreshBalance,
-      ensureDelegated,
-      undelegate,
       createStipendCrossChain,
       fundStipendCrossChain,
       revokeStipend,
@@ -438,8 +400,6 @@ export function UAProvider({ children }: { children: ReactNode }) {
       isDelegated,
       loading,
       refreshBalance,
-      ensureDelegated,
-      undelegate,
       createStipendCrossChain,
       fundStipendCrossChain,
       revokeStipend,

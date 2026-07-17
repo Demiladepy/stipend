@@ -12,7 +12,7 @@ import {
   publicClient,
   type PolicyView,
 } from '@/lib/vault';
-import { useMagic } from '@/providers/MagicProvider';
+import { useAuth } from '@/providers/AuthProvider';
 import { useUniversalAccount } from '@/providers/UAProvider';
 
 type Row = { id: `0x${string}`; policy: PolicyView; available: bigint };
@@ -22,8 +22,8 @@ const createdEvent = parseAbiItem(
 );
 
 export default function ClaimPage() {
-  const { userAddress } = useMagic();
-  const { claimStipend, ensureDelegated } = useUniversalAccount();
+  const { userAddress } = useAuth();
+  const { claimStipend } = useUniversalAccount();
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +76,6 @@ export default function ClaimPage() {
     setBusy(row.id);
     setNotice('');
     try {
-      await ensureDelegated();
       const human = (Number(row.available) / 1e6).toString();
       const txId = await claimStipend(row.id, human);
       setNotice(`Claimed $${fmtUsdc(row.available)} — it's on the way. (tx ${txId.slice(0, 10)}…)`);

@@ -10,8 +10,7 @@ chain: a weekly allowance for a student, a revocable subscription to a creator, 
 headline — a **hard budget for an AI agent** that pays for services by itself and gets told
 *no* by the chain when it tries to overspend.
 
-Built for the **UXmaxx Hackathon** — Universal Accounts Track (Particle Network) + Magic
-Labs bonus.
+Built for the **UXmaxx Hackathon** — Universal Accounts Track (Particle Network).
 
 **Live demo:** `https://stipend.vercel.app` · **Contract:** `StipendVault` on Base
 (`NEXT_PUBLIC_STIPEND_VAULT_ADDRESS`, address recorded after deploy) · **Demo video:** _link
@@ -40,7 +39,7 @@ flowchart LR
         SVC["x402 paid service"]
     end
 
-    SENDER["Sender\n(Magic email login →\nEIP-7702 Universal Account)"] -- "one signature" --> UA["Particle Universal Account\ncreateUniversalTransaction()"]
+    SENDER["Sender\n(Privy email login →\nEIP-7702 Universal Account)"] -- "one signature" --> UA["Particle Universal Account\ncreateUniversalTransaction()"]
     FUNDS -. "routed cross-chain" .-> UA
     UA -- "approve + createStipend\n(atomic, on Base)" --> VAULT
     RECIP["Recipient\n(email login, no gas)"] -- "claim()" --> VAULT
@@ -51,10 +50,10 @@ flowchart LR
 
 **Where each piece of the stack earns its place:**
 
-- **EIP-7702 (Magic `sign7702Authorization` + `send7702Transaction`)** — the user's
-  email-login EOA is upgraded *in place* to a Particle Universal Account. Same address, same
-  keys, reversible (we ship an undelegate button — delegating to the zero address restores a
-  plain EOA).
+- **EIP-7702 (Privy `useSign7702Authorization`)** — the user's email-login EOA is upgraded
+  *in place* to a Particle Universal Account. No separate "delegate" step: the authorization
+  is signed inline with the first transaction and lands with it. Same address, same keys,
+  reversible by the standard (an authorization to the zero address restores a plain EOA).
 - **Particle Universal Accounts (7702 mode)** — the EOA *is* the UA. One signature routes
   value from wherever the sender's funds live and lands it in the vault on Base via
   `createUniversalTransaction({ chainId, expectTokens, transactions })` — the SDK sources
@@ -73,7 +72,7 @@ flowchart LR
 EIP-7702 gives an EOA exactly **one delegation slot**, and in 7702 mode Particle's UA
 implementation occupies it. Rather than fight for the slot or pretend our dApp's transaction
 builder is "enforcement," Stipend moves the rule to the **asset layer**: funds sit in the
-policy contract and only ever leave within the rule. The wallet stack (Magic + UA) does what
+policy contract and only ever leave within the rule. The wallet stack (Privy + UA) does what
 it is uniquely good at — email onboarding, in-place upgrade, one-signature cross-chain
 routing — and the vault does what only a contract holding the money can do: make the rule
 unbreakable.
@@ -103,7 +102,7 @@ pnpm dev                     # → http://localhost:3000
 
 | Env var | What it is |
 |---|---|
-| `NEXT_PUBLIC_MAGIC_API_KEY` | Magic publishable key (dashboard.magic.link) |
+| `NEXT_PUBLIC_PRIVY_APP_ID` (+ optional `NEXT_PUBLIC_PRIVY_CLIENT_ID`) | Privy app (dashboard.privy.io — email login + embedded wallets) |
 | `NEXT_PUBLIC_PROJECT_ID` / `NEXT_PUBLIC_CLIENT_KEY` / `NEXT_PUBLIC_APP_ID` | Particle project credentials (dashboard.particle.network) |
 | `NEXT_PUBLIC_BASE_RPC_URL` | Base mainnet RPC |
 | `NEXT_PUBLIC_STIPEND_VAULT_ADDRESS` / `NEXT_PUBLIC_VAULT_DEPLOY_BLOCK` | Deployed vault + its deploy block (log recovery) |
@@ -135,9 +134,9 @@ cp .env.example .env         # PRIVATE_KEY (funded dev wallet) + BASE_RPC_URL
 
 ## Stack
 
-Next.js 14 (App Router) · TypeScript · viem · Magic SDK (`@magic-ext/evm`, email OTP +
-EIP-7702) · Particle Universal Account SDK v2 (7702 mode) · Solidity 0.8.28 · Foundry ·
-Base / Arbitrum / Ethereum mainnet.
+Next.js 14 (App Router) · TypeScript · viem · Privy (`@privy-io/react-auth`, email OTP +
+inline EIP-7702 auth) · Particle Universal Account SDK v2 (7702 mode) · Solidity 0.8.28 ·
+Foundry · Base / Arbitrum / Ethereum mainnet.
 
 ## Roadmap
 
@@ -150,5 +149,5 @@ Base / Arbitrum / Ethereum mainnet.
 
 ---
 
-*UXmaxx Hackathon 2026 · Universal Accounts Track + Magic Labs bonus · built with real funds
-on mainnet, no testnets harmed.*
+*UXmaxx Hackathon 2026 · Universal Accounts Track · built with real funds on mainnet, no
+testnets harmed.*

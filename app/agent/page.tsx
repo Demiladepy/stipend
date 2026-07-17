@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Header } from '@/components/Header';
 import { fmtUsdc, getAvailable, getPolicy } from '@/lib/vault';
 import { loadStipends } from '@/lib/store';
-import { useMagic } from '@/providers/MagicProvider';
+import { useAuth } from '@/providers/AuthProvider';
 import { useUniversalAccount } from '@/providers/UAProvider';
 
 type Entry = {
@@ -23,8 +23,8 @@ type AgentInfo = {
 };
 
 export default function AgentPage() {
-  const { userAddress } = useMagic();
-  const { approveAgentOnStipend, ensureDelegated } = useUniversalAccount();
+  const { userAddress } = useAuth();
+  const { approveAgentOnStipend } = useUniversalAccount();
 
   const [info, setInfo] = useState<AgentInfo | null>(null);
   const [infoError, setInfoError] = useState('');
@@ -70,7 +70,6 @@ export default function AgentPage() {
     setApproving(true);
     setNotice('');
     try {
-      await ensureDelegated();
       await approveAgentOnStipend(
         stipendId as `0x${string}`,
         info.agentAddress,
