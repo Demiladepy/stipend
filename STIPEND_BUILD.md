@@ -355,6 +355,15 @@ rewards UX polish.
 ## PROGRESS LOG (append every session — newest at top)
 <!-- FORMAT: [DATE] Phase X — what got done, what's blocking, exact next step -->
 
+- [TUE-Jul14-2] Privy app LIVE in the app — App ID `cmrpjqesu…e7b4` in `.env.local`
+  (app secret NOT stored anywhere — frontend doesn't need it). Verified in browser:
+  PrivyProvider reaches ready state, debug panel renders (privy: logged out / EOA — /
+  7702 not delegated / UA balance —), clicking "Continue with email" OPENS THE PRIVY
+  LOGIN MODAL on localhost with zero console errors. Phase 1 gate now needs only the
+  human step: user logs in with their email OTP → debug panel should show email + EOA +
+  UA balance. Then: vault deploy (still the critical path), agent env, live cross-chain
+  run. 5 days to submission.
+
 - [TUE-Jul14 #2] MAGIC → PRIVY PIVOT (full migration in one session) — Magic dropped
   (paywall + unresponsive team; Magic bonus prize abandoned). Cloned Particle's own Privy
   reference (`reference/universal-accounts-7702`) and mirrored its pattern exactly:
