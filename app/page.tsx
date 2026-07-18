@@ -1,9 +1,12 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { DebugPanel } from '@/components/DebugPanel';
 import { useAuth } from '@/providers/AuthProvider';
+
+const Hero3D = dynamic(() => import('@/components/Hero3D'), { ssr: false });
 
 export default function Home() {
   const { userAddress, login, ready } = useAuth();
@@ -12,17 +15,21 @@ export default function Home() {
   return (
     <main>
       <Header />
-      <section className="mx-auto max-w-4xl px-6 py-20">
-        <h1 className="max-w-2xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-          Money with the rules <span className="text-accent">built in.</span>
+      <section className="relative mx-auto max-w-4xl overflow-visible px-6 py-20">
+        <div className="absolute -inset-x-40 -top-24 -z-10 h-[560px] sm:h-[640px]">
+          <Hero3D />
+        </div>
+        <h1 className="anim-up max-w-2xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+          Money with the rules{' '}
+          <span className="text-shimmer">built in.</span>
         </h1>
-        <p className="mt-5 max-w-xl text-lg text-zinc-400">
+        <p className="anim-up anim-d1 mt-5 max-w-xl text-lg text-zinc-400">
           Set a rule — who gets paid, how much, how often, with a hard limit —
           and it&apos;s enforced on-chain by the contract holding the funds. Not
           by an app. Not by a bank. Pay from any chain; revoke any time.
         </p>
 
-        <div className="mt-12 max-w-md">
+        <div className="anim-up anim-d2 mt-12 max-w-md">
           {userAddress ? (
             <div className="card">
               <p className="text-sm text-zinc-400">You&apos;re signed in.</p>

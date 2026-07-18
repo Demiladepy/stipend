@@ -31,3 +31,79 @@
     @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-500;
   }
 }
+
+@layer utilities {
+  /* Entrance: fade + rise. Staggered with .anim-d1/.anim-d2 */
+  .anim-up {
+    animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .anim-d1 {
+    animation-delay: 0.12s;
+  }
+  .anim-d2 {
+    animation-delay: 0.24s;
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Accent shimmer on the hero keyword */
+  .text-shimmer {
+    background: linear-gradient(
+      100deg,
+      #34d399 0%,
+      #a7f3d0 30%,
+      #34d399 55%,
+      #10b981 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer 5s linear infinite;
+  }
+  @keyframes shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .anim-up,
+    .text-shimmer {
+      animation: none;
+    }
+  }
+}
+
+/* Card + button micro-interactions (outside @layer so they always apply) */
+.card {
+  transition:
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(52, 211, 153, 0.35);
+  box-shadow: 0 8px 30px -12px rgba(52, 211, 153, 0.15);
+}
+.btn-primary {
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.25s ease,
+    transform 0.15s ease;
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 0 24px -6px rgba(52, 211, 153, 0.55);
+}
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
