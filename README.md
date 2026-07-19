@@ -1,153 +1,234 @@
-# Stipend — money with the rules built in
+# Stipend
 
-> **Wallet-enforced delegation, not vault-based streaming.** The rule — who gets paid, how
-> much, how often, with a hard lifetime limit — is enforced by the contract that holds the
-> funds, on-chain, on Base mainnet. Not by our app. Not by a keeper. Not by a bank. A
-> transaction that violates the rule reverts, even if it never touches our frontend.
+### Money with the rules built in.
 
-Stipend lets anyone set **programmable money rules** with an email address and money on any
-chain: a weekly allowance for a student, a revocable subscription to a creator, or — the
-headline — a **hard budget for an AI agent** that pays for services by itself and gets told
-*no* by the chain when it tries to overspend.
+> **This is wallet-enforced delegation — not vault-based streaming like Sablier.**
+>
+> The wallet is where spending limits actually fire. Stipend is the enforcement
+> primitive beneath x402 / MPP / ACP / AP2: a recipient, an amount, a frequency,
+> a hard cap, a revocation rule — enforced on-chain by the contract that holds
+> the funds. Not by our app. Not by a keeper. Not by a bank.
 
-Built for the **UXmaxx Hackathon** — Universal Accounts Track (Particle Network).
+<p align="center">
+  <img src="app/icon.svg" width="64" alt="Stipend mark" />
+</p>
 
-**Live demo:** `https://stipend.vercel.app` · **Contract:** `StipendVault` on Base
-(`NEXT_PUBLIC_STIPEND_VAULT_ADDRESS`, address recorded after deploy) · **Demo video:** _link
-in submission_
+**UXmaxx Hackathon 2026 · 7702 Collective**  
+**Track:** Universal Accounts (Particle Network) — primary  
+**Live app:** [stipend.vercel.app](https://stipend.vercel.app)  
+**Repo:** [github.com/Demiladepy/stipend](https://github.com/Demiladepy/stipend)
 
 ---
 
-## The three scenes
+## Why this wins the UA Track
 
-| Scene | What happens | Why it's hard without Stipend |
+Judges ask three things. We answer all three in the product:
+
+| Judge question | Stipend answer |
+|---|---|
+| Is UA + 7702 *prominent* — or bolted on? | Email login → EIP-7702 Universal Account → one-signature **cross-chain fund into a rule on Base**. UA is the funding path, not a side quest. |
+| Is the UX consumer-grade? | No “EOA”, no “delegation”, no “periodSeconds” in the UI. Plain language: who, how much, how often, hard limit. |
+| What’s novel vs Sablier / streams? | **Enforcement is custody.** Funds sit in `StipendVault`. Overspend **reverts on-chain**. Agent never holds keys or money. |
+
+Tribal signals we ship to (verbatim where it matters):
+
+- *“Asset-centric, not chain-centric”* — Derek Chiang / ZeroDev  
+- *“The wallet is where spending limits actually fire”* — Joan Alavedra / Openfort  
+- *“EIP-7702 is the quiet unlock”* — 7702 Collective  
+- *“We built the consumer MVP of Universal Agent Accounts before the infra shipped”* — Particle roadmap
+
+---
+
+## The problem
+
+Today you can:
+
+- Give an AI agent your keys → unlimited blast radius  
+- Or give it nothing → it can’t pay for tools  
+
+There is no native consumer primitive for: **“Here’s $50/week, max $5/call, enforced — and I can revoke instantly.”**
+
+Card rails enforce that with processors. Crypto “streams” usually lock you into vault UX that judges pattern-match to Sablier and stop listening. Stipend is the **wallet-layer rule**: programmable money for people and agents, funded from any chain via Particle Universal Accounts.
+
+---
+
+## What we built (shipped in this repo)
+
+### Product surfaces
+
+| Route | What it does |
+|---|---|
+| `/` | Brand-first landing — pitch, how it works, three scenes with imagery |
+| `/create` | Jargon-free create + **UA cross-chain fund** (transfer-and-call into vault) |
+| `/dashboard` | Live policies: available / pot / lifetime left · top-up · modify · revoke+refund |
+| `/claim` | Recipient view — claim without caring which chain the money came from |
+| `/agent` | **Hero scene** — agent pays x402 research API; over-cap shows **BLOCKED ON-CHAIN** |
+| `/api/research` | x402-style 402 → quote → verify `Claimed` event on Base |
+| `/api/agent/step` | Server agent loop: simulate → claim → retry with payment proof |
+
+<p align="center">
+  <img src="public/images/home-agent.jpg" width="720" alt="AI agent budget scene — dark workspace, emerald terminal glow" />
+</p>
+<p align="center"><em>Hero scene: an agent on a hard budget. The chain is the referee.</em></p>
+
+### Contract — `StipendVault` (Plan B: custody enforcement)
+
+`contracts/src/StipendVault.sol` · Solidity 0.8.28 · OpenZeppelin SafeERC20 + ReentrancyGuard · Foundry · **21/21 tests green**
+
+| Function | Role |
+|---|---|
+| `createStipend` / `fund` | Create the rule and custody USDC (or native) |
+| `claim` | **Enforcement core** — period cap, total cap, balance, revoke, authorization |
+| `revoke` | Sender stops the rule; remainder refunds |
+| `modify` | Change caps (cannot set total below spent) |
+| `approveAgent` | Let an agent claim without ever holding funds |
+| `available` / `balanceOf` / `getPolicy` | Live reads for the UI |
+
+**Architecture choice (honest):** EIP-7702 gives one delegation slot; Particle’s UA occupies it. We do **not** pretend our dApp is enforcement. Funds live in the vault — so a bypass of the frontend still cannot pull more than the policy allows. UA does what it uniquely does: **one-signature cross-chain routing** of deposits in (and payouts out).
+
+### Stack that maps to prize criteria
+
+| Layer | Choice | Why |
 |---|---|---|
-| 🤖 **Agent on a budget** | An AI agent pays a 402-gated research API per call, straight from its stipend. The vault pays the service directly — the agent never holds funds. When the budget runs out, the claim **reverts on-chain** (`OverPeriodCap()`) and the service never gets paid. | Today you either give an agent your keys (unlimited) or nothing. There is no native "here's $50/week, max, enforced" primitive. |
-| 🎨 **Subscriptions you control** | Recurring support for a creator that the sender can revoke in one click — the unspent balance refunds instantly. | Card subscriptions are enforced by processors; crypto "streams" lock funds in protocols with their own semantics. |
-| 👨‍👧 **Allowance** | A parent funds a weekly allowance from whatever chain their money lives on; the student claims gaslessly with just an email login. | The student can never blow a month in a day — the period cap is chain law. |
+| Auth + 7702 | **Privy** email OTP + embedded wallet + inline `signAuthorization` | Matches Particle’s own UA+7702 reference; Magic bonus dropped after paywall — same UX story |
+| Chain abstraction | **Particle Universal Account SDK v2** (`useEIP7702: true`) | `createUniversalTransaction` = transfer-and-call into vault on Base |
+| Chains | **Ethereum / Arbitrum / Base mainnet** | UA Track liquidity triangle; contract on Base |
+| App | Next.js 14 App Router · TypeScript · viem · ethers · Tailwind · three.js hero | Consumer polish without crypto jargon |
+
+---
+
+## Three demo scenes
+
+### 1. AI agent budget — **HERO**
+
+<p align="center">
+  <img src="public/images/home-agent.jpg" width="640" alt="Agent budget visual" />
+</p>
+
+Agent gets a stipend (e.g. $50/wk, $5/call). It calls a paid research API. Vault pays the **service** directly; agent is only an approved claimer. When the next call would break the rule:
+
+```text
+BLOCKED ON-CHAIN: OverPeriodCap()
+```
+
+No payment. No data. No app soft-block. **The chain said no.**
+
+### 2. Creator subscription
+
+<p align="center">
+  <img src="public/images/home-creator.jpg" width="640" alt="Creator subscription visual" />
+</p>
+
+Recurring support with an instant cut-off. Revoke → unspent balance refunds to the sender. No processor to beg.
+
+### 3. Allowance (parent → student)
+
+<p align="center">
+  <img src="public/images/home-allowance.jpg" width="640" alt="Allowance visual" />
+</p>
+
+Weekly limit that cannot be blown in a day. Fund from wherever USDC/ETH lives. Student claims with email — gas abstracted via UA.
+
+---
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    subgraph ANY["Any chain (Ethereum / Arbitrum / …)"]
-        FUNDS["Sender's USDC/ETH"]
+    subgraph ANY["Any chain — Ethereum / Arbitrum / …"]
+        FUNDS["Sender USDC / ETH"]
     end
 
     subgraph BASE["Base mainnet"]
-        VAULT["StipendVault.sol\n(custodies funds,\nenforces the rule)"]
-        SVC["x402 paid service"]
+        VAULT["StipendVault\ncustodies + enforces"]
+        SVC["x402 research API"]
     end
 
-    SENDER["Sender\n(Privy email login →\nEIP-7702 Universal Account)"] -- "one signature" --> UA["Particle Universal Account\ncreateUniversalTransaction()"]
-    FUNDS -. "routed cross-chain" .-> UA
-    UA -- "approve + createStipend\n(atomic, on Base)" --> VAULT
-    RECIP["Recipient\n(email login, no gas)"] -- "claim()" --> VAULT
-    AGENT["AI agent\n(approved claimer,\nnever holds funds)"] -- "claim(price)" --> VAULT
-    VAULT -- "pays service directly" --> SVC
-    VAULT -- "over budget →\nrevert OverPeriodCap()" --x AGENT
+    SENDER["Sender\nPrivy email → EIP-7702 UA"] -- "one signature" --> UA["Particle UA\ncreateUniversalTransaction"]
+    FUNDS -. "cross-chain route" .-> UA
+    UA -- "approve + createStipend\natomic on Base" --> VAULT
+    RECIP["Recipient\nemail login"] -- "claim" --> VAULT
+    AGENT["AI agent\napproved claimer"] -- "claim price" --> VAULT
+    VAULT -- "pays service" --> SVC
+    VAULT -- "over budget → revert" --x AGENT
 ```
 
-**Where each piece of the stack earns its place:**
+**Where each sponsor piece earns its keep:**
 
-- **EIP-7702 (Privy `useSign7702Authorization`)** — the user's email-login EOA is upgraded
-  *in place* to a Particle Universal Account. No separate "delegate" step: the authorization
-  is signed inline with the first transaction and lands with it. Same address, same keys,
-  reversible by the standard (an authorization to the zero address restores a plain EOA).
-- **Particle Universal Accounts (7702 mode)** — the EOA *is* the UA. One signature routes
-  value from wherever the sender's funds live and lands it in the vault on Base via
-  `createUniversalTransaction({ chainId, expectTokens, transactions })` — the SDK sources
-  USDC cross-chain and executes `approve` + `createStipend` atomically. This is the
-  transfer-and-call pattern Particle's own workshop points builders at.
-- **StipendVault (Solidity, Foundry, 21/21 tests)** — the enforcement core. Custody-based by
-  design: the contract holds the funds, so *it does not matter what any wallet's delegation
-  slot points at* — nobody can pull more than the policy allows, because the policy owner is
-  the balance holder. No keeper, no off-chain watcher, nothing to bypass.
-- **x402-style paid API** — the agent scene's counterparty. Answers `402 Payment Required`
-  with a quote; verifies payment by reading the vault's `Claimed` event on Base. "Did I get
-  paid" is a pure on-chain check.
-
-### Why custody-based enforcement (and why we say so out loud)
-
-EIP-7702 gives an EOA exactly **one delegation slot**, and in 7702 mode Particle's UA
-implementation occupies it. Rather than fight for the slot or pretend our dApp's transaction
-builder is "enforcement," Stipend moves the rule to the **asset layer**: funds sit in the
-policy contract and only ever leave within the rule. The wallet stack (Privy + UA) does what
-it is uniquely good at — email onboarding, in-place upgrade, one-signature cross-chain
-routing — and the vault does what only a contract holding the money can do: make the rule
-unbreakable.
-
-## Contract
-
-`contracts/src/StipendVault.sol` — deployed on Base (8453). Foundry project, OpenZeppelin
-5.1, Soldeer deps, **21/21 tests** (`forge test`).
-
-| Function | Who | What |
-|---|---|---|
-| `createStipend(token, recipient, amountPerPeriod, periodSeconds, totalCap, salt, initialDeposit)` | sender | Create + fund the rule (USDC or native) |
-| `fund(id, amount)` | sender | Top up the pot |
-| `claim(id, amount)` | recipient or approved agent | **The enforcement core** — reverts on `OverPeriodCap`, `OverTotalCap`, `InsufficientBalance`, `IsRevoked`, `NotAuthorized` |
-| `revoke(id)` | sender | Kill the rule; remaining balance refunds instantly |
-| `modify(id, perPeriod, periodSeconds, totalCap)` | sender | Change the rule (cannot set cap below spent) |
-| `approveAgent(id, agent, approved)` | sender | Let an agent claim on the recipient's behalf |
-| `available(id)` / `balanceOf(id)` / `getPolicy(id)` | anyone | Live reads the UI is built on |
-
-## Run it locally
-
-```bash
-pnpm install
-cp .env.example .env.local   # fill the values below
-pnpm dev                     # → http://localhost:3000
-```
-
-| Env var | What it is |
-|---|---|
-| `NEXT_PUBLIC_PRIVY_APP_ID` (+ optional `NEXT_PUBLIC_PRIVY_CLIENT_ID`) | Privy app (dashboard.privy.io — email login + embedded wallets) |
-| `NEXT_PUBLIC_PROJECT_ID` / `NEXT_PUBLIC_CLIENT_KEY` / `NEXT_PUBLIC_APP_ID` | Particle project credentials (dashboard.particle.network) |
-| `NEXT_PUBLIC_BASE_RPC_URL` | Base mainnet RPC |
-| `NEXT_PUBLIC_STIPEND_VAULT_ADDRESS` / `NEXT_PUBLIC_VAULT_DEPLOY_BLOCK` | Deployed vault + its deploy block (log recovery) |
-| `NEXT_PUBLIC_USDC_ADDRESS` | USDC on Base (`0x8335…2913`) |
-| `AGENT_PRIVATE_KEY` | **Server-only.** Demo agent's key (fresh throwaway, ~0.0005 ETH on Base for gas) |
-| `NEXT_PUBLIC_SERVICE_ADDRESS` | Where the paid research API receives its money |
-
-Deploy the contract (Base mainnet, costs a few cents):
-
-```bash
-cd contracts
-cp .env.example .env         # PRIVATE_KEY (funded dev wallet) + BASE_RPC_URL
-./deploy.ps1                 # or: forge script script/Deploy.s.sol:DeployStipendVault --rpc-url base --broadcast
-```
-
-## Demo script (90 seconds)
-
-1. **Create** — email login → "New stipend" → $0.25/day for the research service, $1 total,
-   funded with USDC sourced from Arbitrum. One signature; the route resolves cross-chain and
-   the rule goes live on Base.
-2. **Delegate the agent** — one click approves the agent's address on the stipend.
-3. **Let it work** — the agent calls the paid API: `402 → claim $0.05 (vault pays the
-   service) → 200 + data`. Repeat.
-4. **The wall** — the next call would cross the cap: **`BLOCKED ON-CHAIN: OverPeriodCap()`**.
-   No payment, no data, no app logic involved — the chain said no.
-5. **Exit** — dashboard → *Stop & refund*. Unspent money is back with the sender in one
-   transaction. (And if the user wants their plain EOA back: undelegate. Reversible by
-   design.)
-
-## Stack
-
-Next.js 14 (App Router) · TypeScript · viem · Privy (`@privy-io/react-auth`, email OTP +
-inline EIP-7702 auth) · Particle Universal Account SDK v2 (7702 mode) · Solidity 0.8.28 ·
-Foundry · Base / Arbitrum / Ethereum mainnet.
-
-## Roadmap
-
-- **Merchant/category scoping** — v2 policies gate *what* a claim pays for, not just how much.
-- **Universal Agent Accounts** — as Particle ships agent-native accounts, Stipend is the
-  consumer budget layer on top: we built the MVP of the pattern before the infra shipped.
-- **Everywhere 7702 goes** — the standard is spreading beyond Ethereum L2s (even
-  Bitcoin-secured chains like Mezo ship type-0x04 at genesis). Wallet-enforced money rules
-  port with it — BTC-backed allowances included.
+1. **EIP-7702 + Privy** — email EOA upgraded in place; inline authorizations with the UA userOps (same address, reversible).  
+2. **Particle UA** — sources funds from Arb/ETH and lands them in the vault on Base in one abstracted flow.  
+3. **StipendVault** — the moat. Caps fire here because the contract holds the money.  
+4. **x402-style endpoint** — payment proof is an on-chain `Claimed` event, not a database flag.
 
 ---
 
-*UXmaxx Hackathon 2026 · Universal Accounts Track · built with real funds on mainnet, no
-testnets harmed.*
+## 90-second demo script (for judges)
+
+1. **Login** — email OTP (Privy). Debug panel shows EOA + UA balance.  
+2. **Create** — recipient = research service · small period amount · fund from unified balance · one signature · route resolves to Base.  
+3. **Approve agent** — one click on `/agent`.  
+4. **Run calls** — `402 → claim → 200 + data`. Repeat.  
+5. **The wall** — next call hits the cap → **BLOCKED ON-CHAIN**.  
+6. **Exit** — dashboard → Stop & refund. Remainder returns to sender.
+
+---
+
+## What’s achieved vs what’s live-blocked
+
+We are honest with judges: **the product is built end-to-end in code.** Mainnet live tx hashes wait on vault deploy gas + a funded demo wallet (Discord / faucet / tip).
+
+| Milestone | Status |
+|---|---|
+| Foundry `StipendVault` + **21/21 tests** | Done |
+| Deploy scripts (`Deploy.s.sol`, `deploy.ps1`) | Done — awaiting Base gas on deploy wallet |
+| Next.js app: create / dashboard / claim / agent / APIs | Done · builds green |
+| Privy + UA SDK v2 · inline 7702 | Done · login verified live |
+| Mechanic-1 UA transfer-and-call into vault | Implemented in `UAProvider` |
+| Landing polish + scene imagery | Done |
+| Live Base vault address + Arb→Base funding tx | **Pending** funded deploy + demo USDC/ETH |
+| Submission video / deck | In progress |
+
+---
+
+## Run locally
+
+```bash
+pnpm install
+cp .env.example .env.local   # Privy + Particle + Base RPC (+ vault after deploy)
+pnpm dev                     # http://localhost:3000 (or 3001 if 3000 is taken)
+```
+
+```bash
+cd contracts
+cp .env.example .env         # PRIVATE_KEY + BASE_RPC_URL
+forge test                   # 21/21
+./deploy.ps1                 # Base mainnet broadcast when wallet has gas
+```
+
+| Env | Purpose |
+|---|---|
+| `NEXT_PUBLIC_PRIVY_APP_ID` | Email + embedded wallets |
+| `NEXT_PUBLIC_PROJECT_ID` / `CLIENT_KEY` / `APP_ID` | Particle UA |
+| `NEXT_PUBLIC_STIPEND_VAULT_ADDRESS` | Vault on Base (after deploy) |
+| `NEXT_PUBLIC_USDC_ADDRESS` | Base USDC `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+| `AGENT_PRIVATE_KEY` | Server-only demo agent (throwaway) |
+| `NEXT_PUBLIC_SERVICE_ADDRESS` | x402 pay-to address |
+
+---
+
+## Roadmap
+
+- **Category / merchant scoping** — v2 policies gate *what* a claim can pay, not only how much.  
+- **Universal Agent Accounts** — as Particle ships agent-native accounts, Stipend is the consumer budget layer on top.  
+- **Everywhere 7702 goes** — wallet-enforced money rules port with the standard.
+
+---
+
+## Team note
+
+Built for **Encode / UXmaxx · 7702 Collective** with real mainnet intent (ETH / Arb / Base). No testnet cosplay for the prize path. Scope discipline: agent scene + 7702 + one UA cross-chain route are non-negotiable; polish cuts last.
+
+---
+
+*Stipend — a code of law for your money and your agents.*  
+*Wallet-enforced. Chain-settled. Revocable.*
