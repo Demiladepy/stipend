@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { Header } from '@/components/Header';
+import { AppShell, PageHeader } from '@/components/AppShell';
 import { fmtUsdc, getAvailable, getPolicy } from '@/lib/vault';
 import { loadStipends } from '@/lib/store';
 import { useAuth } from '@/providers/AuthProvider';
@@ -110,27 +110,21 @@ export default function AgentPage() {
   };
 
   return (
-    <main>
-      <Header />
-      <section className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Agent on a budget
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-zinc-400">
-          This AI agent pays a research API per call — straight from a stipend.
-          It never holds the money. When it tries to spend past the rule, the
-          chain itself says no.
-        </p>
+    <AppShell>
+      <PageHeader
+        title="Agent on a budget"
+        description="This agent pays a research API per call from a stipend. It never holds the money. Past the rule, the chain says no."
+      />
 
         {infoError && (
-          <p className="mt-6 rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+          <p className="mb-6 rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
             Agent not configured: {infoError}. Set AGENT_PRIVATE_KEY and
             NEXT_PUBLIC_SERVICE_ADDRESS in .env.local.
           </p>
         )}
 
         {info && (
-          <div className="card mt-6 grid gap-3 text-sm sm:grid-cols-3">
+          <div className="card mb-4 grid gap-3 text-sm sm:grid-cols-3">
             <div>
               <p className="text-xs text-zinc-600">Agent wallet</p>
               <p className="font-mono text-xs">{info.agentAddress.slice(0, 10)}…</p>
@@ -157,7 +151,7 @@ export default function AgentPage() {
           </div>
         )}
 
-        <div className="card mt-4 space-y-4">
+        <div className="card mb-4 space-y-4">
           <div>
             <label className="label">Stipend rule id</label>
             <input
@@ -192,7 +186,7 @@ export default function AgentPage() {
           {notice && <p className="text-sm text-accent">{notice}</p>}
         </div>
 
-        <div className="card mt-4 min-h-[200px]">
+        <div className="card min-h-[200px]">
           <p className="label">Agent activity</p>
           {log.length === 0 ? (
             <p className="text-sm text-zinc-600">
@@ -225,7 +219,6 @@ export default function AgentPage() {
             </div>
           )}
         </div>
-      </section>
-    </main>
+    </AppShell>
   );
 }

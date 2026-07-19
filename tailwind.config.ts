@@ -11,6 +11,10 @@ const config: Config = {
         accent: '#34d399',
         'accent-dim': '#10b981',
       },
+      fontFamily: {
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'system-ui', 'sans-serif'],
+      },
     },
   },
   plugins: [],

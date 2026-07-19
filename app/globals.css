@@ -75,9 +75,65 @@
     }
   }
 
+  /* Blurred glow orbs (Particle-style ambient depth) */
+  .orb {
+    @apply pointer-events-none absolute rounded-full opacity-25 blur-3xl;
+    background: radial-gradient(
+      circle at 30% 30%,
+      rgba(52, 211, 153, 0.55),
+      rgba(16, 185, 129, 0.12) 60%,
+      transparent 75%
+    );
+  }
+
+  /* Infinite marquee */
+  .marquee-track {
+    display: inline-block;
+    animation: marquee 28s linear infinite;
+  }
+  .marquee-mask {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 12%,
+      black 88%,
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 12%,
+      black 88%,
+      transparent
+    );
+  }
+  @keyframes marquee {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* Gradient hairline border (glass card top edge) */
+  .edge-glow {
+    position: relative;
+  }
+  .edge-glow::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(52, 211, 153, 0.5),
+      transparent
+    );
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .anim-up,
-    .text-shimmer {
+    .text-shimmer,
+    .marquee-track {
       animation: none;
     }
   }
@@ -86,14 +142,12 @@
 /* Card + button micro-interactions (outside @layer so they always apply) */
 .card {
   transition:
-    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
     border-color 0.25s ease,
     box-shadow 0.25s ease;
 }
 .card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(52, 211, 153, 0.35);
-  box-shadow: 0 8px 30px -12px rgba(52, 211, 153, 0.15);
+  border-color: rgba(52, 211, 153, 0.28);
+  box-shadow: 0 8px 30px -12px rgba(52, 211, 153, 0.12);
 }
 .btn-primary {
   transition:

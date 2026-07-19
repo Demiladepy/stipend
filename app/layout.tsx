@@ -1,7 +1,20 @@
 import type { Metadata } from 'next';
 import { ReactNode } from 'react';
+import { DM_Sans, Syne } from 'next/font/google';
 import { Providers } from '@/providers/Providers';
 import './globals.css';
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+const syne = Syne({
+  subsets: ['latin'],
+  variable: '--font-display',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Stipend — money with rules built in',
@@ -18,8 +31,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-ink text-zinc-100 antialiased">
+    <html lang="en" className={`${dmSans.variable} ${syne.variable}`}>
+      <body className="min-h-screen bg-ink font-sans text-zinc-100 antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

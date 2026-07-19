@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { parseAbiItem } from 'viem';
-import { Header } from '@/components/Header';
-import { DebugPanel } from '@/components/DebugPanel';
+import { AppShell, PageHeader } from '@/components/AppShell';
 import { PERIOD_PRESETS, periodLabel, VAULT_ADDRESS } from '@/lib/config';
 import { loadStipends, saveStipend } from '@/lib/store';
 import {
@@ -166,48 +165,46 @@ export default function DashboardPage() {
 
   if (!userAddress) {
     return (
-      <main>
-        <Header />
-        <section className="mx-auto max-w-xl px-6 py-20 text-center">
-          <p className="text-zinc-400">
-            <Link href="/" className="text-accent underline">
-              Sign in
-            </Link>{' '}
-            to see your stipends.
-          </p>
-        </section>
-      </main>
+      <AppShell width="narrow" debug>
+        <p className="py-16 text-center text-zinc-400">
+          <Link href="/" className="text-accent underline">
+            Sign in
+          </Link>{' '}
+          to see your stipends.
+        </p>
+      </AppShell>
     );
   }
 
   return (
-    <main>
-      <Header />
-      <section className="mx-auto max-w-3xl px-6 py-12">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight">My stipends</h1>
+    <AppShell debug>
+      <PageHeader
+        title="My stipends"
+        description="Live balances and rules — top up, change, or stop and refund."
+        action={
           <Link href="/create" className="btn-primary">
             New stipend
           </Link>
-        </div>
+        }
+      />
 
         {notice && (
-          <p className="mt-4 rounded-xl border border-edge bg-panel px-4 py-3 text-sm text-accent">
+          <p className="mb-6 rounded-xl border border-edge bg-panel px-4 py-3 text-sm text-accent">
             {notice}
           </p>
         )}
 
         {loading ? (
-          <p className="mt-10 text-sm text-zinc-500">Reading the chain…</p>
+          <p className="text-sm text-zinc-500">Reading the chain…</p>
         ) : rows.length === 0 ? (
-          <div className="card mt-8 text-center">
+          <div className="card text-center">
             <p className="text-zinc-400">No stipends yet.</p>
             <p className="mt-1 text-sm text-zinc-600">
               Create one and it&apos;ll appear here with its live balance.
             </p>
           </div>
         ) : (
-          <div className="mt-8 space-y-4">
+          <div className="space-y-4">
             {rows.map(({ id, policy, available }) => (
               <div
                 key={id}
@@ -377,8 +374,6 @@ export default function DashboardPage() {
             rules live in the contract that holds the money, not in your wallet.
           </p>
         </div>
-      </section>
-      <DebugPanel />
-    </main>
+    </AppShell>
   );
 }

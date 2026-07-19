@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { isAddress } from 'viem';
-import { Header } from '@/components/Header';
+import { AppShell, PageHeader } from '@/components/AppShell';
 import { PERIOD_PRESETS } from '@/lib/config';
 import { saveStipend } from '@/lib/store';
 import { useAuth } from '@/providers/AuthProvider';
@@ -78,33 +78,26 @@ export default function CreatePage() {
 
   if (!userAddress) {
     return (
-      <main>
-        <Header />
-        <section className="mx-auto max-w-xl px-6 py-20 text-center">
-          <p className="text-zinc-400">
-            <Link href="/" className="text-accent underline">
-              Sign in
-            </Link>{' '}
-            to create a stipend.
-          </p>
-        </section>
-      </main>
+      <AppShell width="narrow">
+        <p className="py-16 text-center text-zinc-400">
+          <Link href="/" className="text-accent underline">
+            Sign in
+          </Link>{' '}
+          to create a stipend.
+        </p>
+      </AppShell>
     );
   }
 
   return (
-    <main>
-      <Header />
-      <section className="mx-auto max-w-xl px-6 py-12">
-        <h1 className="text-2xl font-bold tracking-tight">New stipend</h1>
-        <p className="mt-2 text-sm text-zinc-400">
-          Your money funds this rule from whichever chain it lives on — we
-          route it automatically. The rule is enforced on-chain from the moment
-          it&apos;s created.
-        </p>
+    <AppShell width="narrow">
+      <PageHeader
+        title="New stipend"
+        description="Fund the rule from whichever chain your money lives on — we route it. Limits are enforced on-chain from the moment it’s created."
+      />
 
         {step === 'done' && result ? (
-          <div className="card mt-8">
+          <div className="card">
             <h2 className="font-semibold text-accent">Stipend live ✓</h2>
             <p className="mt-2 text-sm text-zinc-400">
               The rule is on-chain and funded. The recipient can start drawing
@@ -129,7 +122,7 @@ export default function CreatePage() {
             </div>
           </div>
         ) : (
-          <div className="card mt-8 space-y-5">
+          <div className="card space-y-5">
             <div>
               <label className="label">Who gets it</label>
               <input
@@ -224,7 +217,6 @@ export default function CreatePage() {
             )}
           </div>
         )}
-      </section>
-    </main>
+    </AppShell>
   );
 }

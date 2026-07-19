@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { parseAbiItem } from 'viem';
-import { Header } from '@/components/Header';
+import { AppShell, PageHeader } from '@/components/AppShell';
 import { periodLabel, VAULT_ADDRESS } from '@/lib/config';
 import {
   fmtUsdc,
@@ -89,47 +89,41 @@ export default function ClaimPage() {
 
   if (!userAddress) {
     return (
-      <main>
-        <Header />
-        <section className="mx-auto max-w-xl px-6 py-20 text-center">
-          <p className="text-zinc-400">
-            <Link href="/" className="text-accent underline">
-              Sign in
-            </Link>{' '}
-            with the email that received the stipend.
-          </p>
-        </section>
-      </main>
+      <AppShell width="narrow">
+        <p className="py-16 text-center text-zinc-400">
+          <Link href="/" className="text-accent underline">
+            Sign in
+          </Link>{' '}
+          with the email that received the stipend.
+        </p>
+      </AppShell>
     );
   }
 
   return (
-    <main>
-      <Header />
-      <section className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="text-2xl font-bold tracking-tight">For you</h1>
-        <p className="mt-2 text-sm text-zinc-400">
-          Money set aside for you, released on the sender&apos;s schedule.
-          Claiming costs you nothing — no gas, no setup.
-        </p>
+    <AppShell>
+      <PageHeader
+        title="For you"
+        description="Money set aside for you, released on the sender’s schedule. Claiming costs you nothing."
+      />
 
         {notice && (
-          <p className="mt-4 rounded-xl border border-edge bg-panel px-4 py-3 text-sm text-accent">
+          <p className="mb-6 rounded-xl border border-edge bg-panel px-4 py-3 text-sm text-accent">
             {notice}
           </p>
         )}
 
         {loading ? (
-          <p className="mt-10 text-sm text-zinc-500">Reading the chain…</p>
+          <p className="text-sm text-zinc-500">Reading the chain…</p>
         ) : rows.length === 0 ? (
-          <div className="card mt-8 text-center">
+          <div className="card text-center">
             <p className="text-zinc-400">Nothing addressed to your wallet yet.</p>
             <p className="mt-1 text-sm text-zinc-600">
               When someone creates a stipend for this address, it shows up here.
             </p>
           </div>
         ) : (
-          <div className="mt-8 space-y-4">
+          <div className="space-y-4">
             {rows.map((row) => (
               <div
                 key={row.id}
@@ -175,7 +169,6 @@ export default function ClaimPage() {
             ))}
           </div>
         )}
-      </section>
-    </main>
+    </AppShell>
   );
 }
