@@ -1,22 +1,30 @@
 # Stipend
 
-### Money with the rules built in.
+**Money with the rules built in.**
 
-> **This is wallet-enforced delegation — not vault-based streaming like Sablier.**
->
-> The wallet is where spending limits actually fire. Stipend is the enforcement
-> primitive beneath x402 / MPP / ACP / AP2: a recipient, an amount, a frequency,
-> a hard cap, a revocation rule — enforced on-chain by the contract that holds
-> the funds. Not by our app. Not by a keeper. Not by a bank.
+> **Wallet-enforced delegation — not vault-based streaming like Sablier.**
+
+Stipend turns an email wallet into a place where **spend limits actually fire**.
+You set who gets paid, how much, how often, and a hard lifetime cap. Those rules
+live in a contract that **holds the funds** on Base. Anything over the line
+**reverts on-chain** — even if someone bypasses our UI.
+
+No bank. No Stripe. No off-chain keeper. No soft “please don’t overspend” logic.
+
+**The layer beneath agent payments:** protocols like x402 assume something
+enforces budgets. Stipend *is* that something — for humans and AI agents —
+funded from any chain through Particle Universal Accounts (EIP-7702).
 
 <p align="center">
-  <img src="app/icon.svg" width="64" alt="Stipend mark" />
+  <img src="app/icon.svg" width="56" alt="Stipend" />
 </p>
 
-**UXmaxx Hackathon 2026 · 7702 Collective**  
-**Track:** Universal Accounts (Particle Network) — primary  
-**Live app:** [stipend.vercel.app](https://stipend.vercel.app)  
-**Repo:** [github.com/Demiladepy/stipend](https://github.com/Demiladepy/stipend)
+| | |
+|---|---|
+| **Hackathon** | UXmaxx 2026 · 7702 Collective |
+| **Track** | Universal Accounts (Particle) — primary |
+| **Live** | [stipend.vercel.app](https://stipend.vercel.app) |
+| **Code** | [github.com/Demiladepy/stipend](https://github.com/Demiladepy/stipend) |
 
 ---
 
