@@ -46,7 +46,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { createWallet } = useCreateWallet();
   const walletCreationAttempted = useRef(false);
 
-  const embeddedWallet = wallets?.find((w) => w.walletClientType === 'privy');
+  // A Privy user can have multiple embedded wallets; prefer the one named in
+  // env (the funded demo wallet), else the first.
+  const preferred = process.env.NEXT_PUBLIC_PREFERRED_EOA?.toLowerCase();
+  const privyWallets = wallets?.filter((w) => w.walletClientType === 'privy') ?? [];
+  const embeddedWallet =
+    (preferred && privyWallets.find((w) => w.address.toLowerCase() === preferred)) ||
+    privyWallets[0];
   const userAddress = (embeddedWallet?.address as `0x${string}`) ?? null;
 
   // Safety net: if a user somehow has no embedded wallet, create one.
