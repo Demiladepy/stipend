@@ -28,6 +28,19 @@ funded from any chain through Particle Universal Accounts (EIP-7702).
 | **Track** | Universal Accounts (Particle), primary |
 | **Live** | [stipend-five.vercel.app](https://stipend-five.vercel.app) |
 | **Code** | [github.com/Demiladepy/stipend](https://github.com/Demiladepy/stipend) |
+| **Contract** | [`StipendVault` on Base](https://basescan.org/address/0xf37b1def20b488a76031933d6258650fd3e9d88d) — deploy tx [`0x82da83d9…`](https://basescan.org/tx/0x82da83d985af4c211d1e750cf8f2caab594147ff288d1900c9718dd8d471b7ea) |
+
+## ⚡ Test it yourself in 30 seconds (no wallet, no funds needed)
+
+1. Open **[stipend-five.vercel.app/agent](https://stipend-five.vercel.app/agent)**
+2. The demo stipend's rule id is prefilled. Click **"2 · Run a paid research call"**
+3. Watch a real transaction land on Base mainnet: the AI agent pays the research API
+   **from its stipend** — the vault pays the service directly, the agent never holds funds
+4. Keep clicking. When the period budget runs out, the next call is
+   **rejected by the chain itself**: `BLOCKED ON-CHAIN: OverPeriodCap()` — no payment,
+   no data, no app logic involved. Every call links to Basescan.
+
+That rejection is the product: a spending rule no app, keeper, or middleman can override.
 
 ---
 

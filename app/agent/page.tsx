@@ -51,9 +51,13 @@ export default function AgentPage() {
       .then((d) => (d.error ? setInfoError(d.error) : setInfo(d)))
       .catch((e) => setInfoError(String(e)))
       .finally(() => setInfoLoading(false));
-    // Prefill with the most recent stipend this browser created
+    // Prefill: most recent stipend this browser created, else the public
+    // demo stipend — so judges can run a real on-chain call with zero setup.
     const last = loadStipends()[0];
     if (last) setStipendId(last.id);
+    else if (process.env.NEXT_PUBLIC_DEMO_STIPEND_ID) {
+      setStipendId(process.env.NEXT_PUBLIC_DEMO_STIPEND_ID);
+    }
   }, []);
 
   const refreshBudget = useCallback(async (id: string) => {
