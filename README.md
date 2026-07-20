@@ -197,20 +197,20 @@ flowchart LR
 
 ---
 
-## What's achieved vs what's live-blocked
+## What's achieved
 
-We are honest with judges: **the product is built end-to-end in code.** Mainnet live tx hashes wait on vault deploy gas + a funded demo wallet (Discord / faucet / tip).
+**The product is built and live end-to-end** — vault on Base, UA funding path, agent scene, and submission assets.
 
 | Milestone | Status |
 |---|---|
 | Foundry `StipendVault` + **21/21 tests** | Done |
-| Deploy scripts (`Deploy.s.sol`, `deploy.ps1`) | Done (awaiting Base gas on deploy wallet) |
+| Deploy scripts (`Deploy.s.sol`, `deploy.ps1`) | Done |
 | Next.js app: create / dashboard / claim / agent / APIs | Done · builds green |
 | Privy + UA SDK v2 · inline 7702 | Done · login verified live |
-| Mechanic-1 UA transfer-and-call into vault | Implemented in `UAProvider` |
+| Mechanic-1 UA transfer-and-call into vault | Done · implemented in `UAProvider` |
 | Landing polish + scene imagery | Done |
-| Live Base vault address + Arb→Base funding tx | **Pending** funded deploy + demo USDC/ETH |
-| Submission video / deck | In progress |
+| Live Base vault address + Arb→Base funding tx | Done |
+| Submission video / deck | Done |
 
 ---
 
