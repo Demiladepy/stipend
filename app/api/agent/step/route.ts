@@ -22,11 +22,12 @@ type Entry = {
 };
 
 const FRIENDLY_ERRORS: Record<string, string> = {
+  StipendNotFound: 'no stipend exists with this id on-chain — create and fund one first',
   OverPeriodCap: 'this call would exceed the per-period budget',
   OverTotalCap: 'this call would exceed the lifetime budget',
   InsufficientBalance: 'the stipend pot is empty',
   IsRevoked: 'the stipend was revoked by its owner',
-  NotAuthorized: 'this agent is not approved on the stipend',
+  NotAuthorized: 'this agent is not approved on the stipend — run step 1 first',
 };
 
 export async function POST(req: NextRequest) {
@@ -34,7 +35,24 @@ export async function POST(req: NextRequest) {
   try {
     const { stipendId } = await req.json();
     if (!/^0x[0-9a-fA-F]{64}$/.test(stipendId || '')) {
-      return NextResponse.json({ log: [{ kind: 'error', msg: 'bad stipend id' }] });
+      return NextResponse.json({
+        log: [
+          {
+            kind: 'error',
+            msg: 'Invalid stipend id — must be 0x followed by 64 hex characters.',
+          },
+        ],
+      });
+    }
+    if (!VAULT_ADDRESS) {
+      return NextResponse.json({
+        log: [
+          {
+            kind: 'error',
+            msg: 'NEXT_PUBLIC_STIPEND_VAULT_ADDRESS is not set — deploy the vault on Base first.',
+          },
+        ],
+      });
     }
 
     const agent = getAgentAccount();

@@ -159,7 +159,8 @@ story, but depends on Particle exposing a gating mechanism. Do NOT assume it exi
 
 ---
 
-### [ ] PHASE 2 — Stipend policy contract v1 (2–3 DAYS)
+### [x] PHASE 2 — Stipend policy contract v1 ✅ DEPLOYED Jul 16
+_StipendVault LIVE on Base mainnet: `0xf37b1def20b488a76031933d6258650fd3e9d88d` (block 48879279, deploy tx `0x82da83d9…71b7ea`, deployed with agent key — deploy-wallet ETH landed on wrong chain). Env wired locally + Vercel prod._
 **Goal:** The policy contract that enforces the rule on-chain. Under PLAN B it CUSTODIES funds
 and releases within policy; under PLAN A it sits in the UA execution path as a delegation target.
 **Design (minimal):**

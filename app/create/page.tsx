@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { isAddress } from 'viem';
 import { AppShell, PageHeader } from '@/components/AppShell';
 import { PERIOD_PRESETS } from '@/lib/config';
@@ -25,6 +25,16 @@ export default function CreatePage() {
   const [result, setResult] = useState<{ id: string; txId: string } | null>(
     null,
   );
+
+  // Agent demo: recipient must be the paid service address.
+  useEffect(() => {
+    fetch('/api/agent/info')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.serviceAddress) setRecipient((prev) => prev || d.serviceAddress);
+      })
+      .catch(() => {});
+  }, []);
 
   const validate = (): string => {
     if (!isAddress(recipient)) return 'Recipient must be a wallet address (0x…)';
