@@ -5,6 +5,7 @@
 > **Wallet-enforced delegation, not vault-based streaming like Sablier.**
 >
 > **video demo** - https://youtu.be/2hGcoSqq8qk
+> **concept note** - https://docs.google.com/document/d/1qPLAYDrGcONhXmquCiE8f-Ys6_8l25i5gPmeQxC9IbQ/edit?usp=sharing
 
 Stipend turns an email wallet into a place where **spend limits actually fire**.
 You set who gets paid, how much, how often, and a hard lifetime cap. Those rules
