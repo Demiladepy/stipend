@@ -8,6 +8,7 @@ import {
 } from '@particle-network/universal-account-sdk';
 import {
   useSign7702Authorization,
+  useSignMessage,
   useWallets,
 } from '@privy-io/react-auth';
 import { Signature } from 'ethers';
@@ -76,7 +77,18 @@ export const useUniversalAccount = () => useContext(UAContext);
 export function UAProvider({ children }: { children: ReactNode }) {
   const { userAddress } = useAuth();
   const { signAuthorization } = useSign7702Authorization();
+  const { signMessage } = useSignMessage();
   const { wallets } = useWallets();
+
+  // Same wallet Particle's 7702 demo uses: the Privy embedded EOA that owns the UA.
+  const embeddedWallet = useMemo(() => {
+    if (!userAddress) return undefined;
+    return wallets?.find(
+      (w) =>
+        w.walletClientType === 'privy' &&
+        w.address.toLowerCase() === userAddress.toLowerCase(),
+    );
+  }, [wallets, userAddress]);
 
   const [universalAccount, setUniversalAccount] =
     useState<UniversalAccount | null>(null);
@@ -168,11 +180,11 @@ export function UAProvider({ children }: { children: ReactNode }) {
               },
               { address: userAddress },
             );
+            // Match Particle's universal-accounts-7702 demo serialization.
             const sig = Signature.from({
               r: authorization.r,
               s: authorization.s,
-              v: authorization.v ?? BigInt(authorization.yParity),
-              yParity: authorization.yParity as 0 | 1,
+              yParity: authorization.yParity,
             });
             serialized = sig.serialized;
             nonceMap.set(userOp.eip7702Auth.nonce, serialized);
@@ -191,21 +203,22 @@ export function UAProvider({ children }: { children: ReactNode }) {
   const signAndSend = useCallback(
     async (transaction: any): Promise<{ transactionId: string }> => {
       if (!universalAccount || !userAddress) throw new Error('Log in first');
+      if (!embeddedWallet) {
+        throw new Error('Privy wallet not ready — refresh and try again');
+      }
 
       const authorizations = await sign7702Auths(transaction.userOps);
 
-      // Sign the rootHash with EXACTLY the selected wallet's own provider.
-      // (The account can hold multiple embedded wallets; the global hook may
-      // pick the wrong signer → bundler rejects with AA24 signature error.)
-      const wallet = wallets.find(
-        (w) => w.address.toLowerCase() === userAddress.toLowerCase(),
+      // Particle UA validates this as the owner EOA's personal_sign of rootHash.
+      // Must use Privy useSignMessage with the exact embedded address — raw
+      // provider personal_sign often produces a sig the bundler rejects (AA24).
+      const { signature } = await signMessage(
+        { message: transaction.rootHash },
+        {
+          address: embeddedWallet.address,
+          uiOptions: { title: 'Confirm with Stipend' },
+        },
       );
-      if (!wallet) throw new Error('Wallet not ready — try again in a second');
-      const provider = await wallet.getEthereumProvider();
-      const signature = (await provider.request({
-        method: 'personal_sign',
-        params: [transaction.rootHash, wallet.address],
-      })) as string;
 
       return universalAccount.sendTransaction(
         transaction,
@@ -213,7 +226,7 @@ export function UAProvider({ children }: { children: ReactNode }) {
         authorizations.length > 0 ? authorizations : undefined,
       );
     },
-    [universalAccount, userAddress, sign7702Auths, wallets],
+    [universalAccount, userAddress, embeddedWallet, sign7702Auths, signMessage],
   );
 
   // MECHANIC 1 (transfer-and-call): one universal transaction sources USDC
