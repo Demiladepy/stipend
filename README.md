@@ -26,7 +26,7 @@ funded from any chain through Particle Universal Accounts (EIP-7702).
 |---|---|
 | **Hackathon** | UXmaxx 2026 · 7702 Collective |
 | **Track** | Universal Accounts (Particle), primary |
-| **Live** | [stipend.vercel.app](https://stipend.vercel.app) |
+| **Live** | [stipend-five.vercel.app](https://stipend-five.vercel.app) |
 | **Code** | [github.com/Demiladepy/stipend](https://github.com/Demiladepy/stipend) |
 
 ---

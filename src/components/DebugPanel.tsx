@@ -3,12 +3,16 @@
 // Build-time debug panel (Phase 1 gate): email, EOA, 7702 delegation status,
 // UA unified balance. Jargon is allowed HERE and only here. Hide before demo
 // by setting NEXT_PUBLIC_SHOW_DEBUG=0.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useUniversalAccount } from '@/providers/UAProvider';
 
 export function DebugPanel() {
-  const [open, setOpen] = useState(true);
+  // Collapsed by default on small screens so it never buries the UI.
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia('(min-width: 640px)').matches) setOpen(true);
+  }, []);
   const { ready, authenticated, email, userAddress } = useAuth();
   const { primaryAssets, isDelegated, loading, refreshBalance } =
     useUniversalAccount();
@@ -16,7 +20,7 @@ export function DebugPanel() {
   if (process.env.NEXT_PUBLIC_SHOW_DEBUG === '0') return null;
 
   return (
-    <div className="fixed bottom-3 right-3 z-50 w-72 rounded-xl border border-edge bg-panel/95 font-mono text-[11px] shadow-xl backdrop-blur">
+    <div className="fixed bottom-3 right-3 z-50 w-[min(18rem,calc(100vw-1.5rem))] rounded-xl border border-edge bg-panel/95 font-mono text-[11px] shadow-xl backdrop-blur">
       <button
         className="flex w-full items-center justify-between px-3 py-2 text-zinc-400"
         onClick={() => setOpen(!open)}
