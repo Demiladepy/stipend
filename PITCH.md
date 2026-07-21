@@ -28,10 +28,15 @@ One rule: **who · how much · how often · hard lifetime cap · revocable.**
 1. Sender creates a $0.25/day rule for a paid research API — funded with USDC that
    lived on **Arbitrum**, landing in the vault on **Base** in one signature. `⟨funding tx⟩`
 2. AI agent pays the API per call from the stipend — **the vault pays the service
-   directly; the agent never holds a cent.** `⟨claim txs⟩`
+   directly; the agent never holds a cent.** Real claim: `0x59d116de…` (basescan).
 3. The call that would cross the cap: **rejected on-chain — `OverPeriodCap()`.**
    No payment. No data. No app logic involved. `⟨blocked call screenshot⟩`
 4. Sender clicks revoke: remaining balance refunds instantly. `⟨revoke tx⟩`
+
+**On-chain proof (Base mainnet):**
+- StipendVault: `0xf37b1def20b488a76031933d6258650fd3e9d88d`
+- Live stipend rule: `0x7de06b60ca88597dc095d1d9d8db3c906401c112bad72ea83d7aed45fe072356`
+- Sample agent claim: `0x59d116de86ebcab4f0bd17a01dabffc4bdc4970a9e5036cef8477f0999f8421b`
 
 > This is the moment. Pause on the red BLOCKED line.
 
