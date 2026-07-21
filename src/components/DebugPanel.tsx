@@ -37,6 +37,13 @@ export function DebugPanel() {
           <p className="truncate" title={userAddress ?? ''}>
             EOA: {userAddress ?? '—'}
           </p>
+          <p className="text-[10px] text-zinc-500">
+            Must match funded wallet (preferred:{' '}
+            {process.env.NEXT_PUBLIC_PREFERRED_EOA
+              ? `${process.env.NEXT_PUBLIC_PREFERRED_EOA.slice(0, 8)}…`
+              : 'none'}
+            )
+          </p>
           <p>
             7702 on Base:{' '}
             <b className={isDelegated ? 'text-accent' : 'text-amber-400'}>

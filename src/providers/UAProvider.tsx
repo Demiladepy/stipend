@@ -8,7 +8,6 @@ import {
 } from '@particle-network/universal-account-sdk';
 import {
   useSign7702Authorization,
-  useSignMessage,
   useWallets,
 } from '@privy-io/react-auth';
 import { Signature } from 'ethers';
@@ -21,7 +20,15 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { encodeFunctionData, erc20Abi, parseUnits } from 'viem';
+import {
+  createWalletClient,
+  custom,
+  encodeFunctionData,
+  erc20Abi,
+  parseUnits,
+  type Hex,
+} from 'viem';
+import { base } from 'viem/chains';
 import { stipendVaultAbi } from '@/lib/abi';
 import {
   BASE_CHAIN_ID,
@@ -77,7 +84,6 @@ export const useUniversalAccount = () => useContext(UAContext);
 export function UAProvider({ children }: { children: ReactNode }) {
   const { userAddress } = useAuth();
   const { signAuthorization } = useSign7702Authorization();
-  const { signMessage } = useSignMessage();
   const { wallets } = useWallets();
 
   // Same wallet Particle's 7702 demo uses: the Privy embedded EOA that owns the UA.
@@ -117,7 +123,9 @@ export function UAProvider({ children }: { children: ReactNode }) {
       },
       tradeConfig: {
         slippageBps: 100,
-      },
+        // Particle pays gas from unified balance when EOA has 0 Base ETH.
+        universalGas: true,
+      } as any,
     });
     setUniversalAccount(ua);
   }, [userAddress]);
@@ -164,30 +172,33 @@ export function UAProvider({ children }: { children: ReactNode }) {
     async (userOps: any[] | undefined) => {
       if (!userOps || !userAddress) return [];
       const authorizations: { userOpHash: string; signature: string }[] = [];
-      const nonceMap = new Map<number, string>();
+      // Key by chainId+nonce — cross-chain txs can share nonce 0 on different chains.
+      const nonceMap = new Map<string, string>();
 
       for (const userOp of userOps) {
         if (userOp.eip7702Auth && !userOp.eip7702Delegated) {
-          let serialized = nonceMap.get(userOp.eip7702Auth.nonce);
+          const chainId = Number(
+            userOp.eip7702Auth.chainId ?? userOp.chainId,
+          );
+          const cacheKey = `${chainId}:${userOp.eip7702Auth.nonce}`;
+          let serialized = nonceMap.get(cacheKey);
           if (!serialized) {
             const authorization = await signAuthorization(
               {
                 contractAddress: userOp.eip7702Auth.address as `0x${string}`,
-                chainId: Number(
-                  userOp.eip7702Auth.chainId || userOp.chainId,
-                ),
+                chainId,
                 nonce: userOp.eip7702Auth.nonce,
               },
               { address: userAddress },
             );
-            // Match Particle's universal-accounts-7702 demo serialization.
             const sig = Signature.from({
               r: authorization.r,
               s: authorization.s,
-              yParity: authorization.yParity,
+              v: authorization.v ?? BigInt(authorization.yParity),
+              yParity: authorization.yParity as 0 | 1,
             });
             serialized = sig.serialized;
-            nonceMap.set(userOp.eip7702Auth.nonce, serialized);
+            nonceMap.set(cacheKey, serialized);
           }
           authorizations.push({
             userOpHash: userOp.userOpHash,
@@ -209,24 +220,36 @@ export function UAProvider({ children }: { children: ReactNode }) {
 
       const authorizations = await sign7702Auths(transaction.userOps);
 
-      // Particle UA validates this as the owner EOA's personal_sign of rootHash.
-      // Must use Privy useSignMessage with the exact embedded address — raw
-      // provider personal_sign often produces a sig the bundler rejects (AA24).
-      const { signature } = await signMessage(
-        { message: transaction.rootHash },
-        {
-          address: embeddedWallet.address,
-          uiOptions: { title: 'Confirm with Stipend' },
-        },
-      );
+      // Particle validates rootHash as EIP-191 over the raw 32-byte hash
+      // (`message: { raw }`), NOT as a UTF-8 string of the hex characters.
+      // Using Privy useSignMessage(string) → AA24. Match Particle Dynamic demo.
+      const provider = await embeddedWallet.getEthereumProvider();
+      const walletClient = createWalletClient({
+        account: userAddress,
+        chain: base,
+        transport: custom(provider),
+      });
+      const signature = await walletClient.signMessage({
+        message: { raw: transaction.rootHash as Hex },
+      });
 
-      return universalAccount.sendTransaction(
-        transaction,
-        signature,
-        authorizations.length > 0 ? authorizations : undefined,
-      );
+      try {
+        return await universalAccount.sendTransaction(
+          transaction,
+          signature,
+          authorizations.length > 0 ? authorizations : undefined,
+        );
+      } catch (err: any) {
+        const msg = err?.message || String(err);
+        if (/AA24|signature/i.test(msg)) {
+          throw new Error(
+            `AA24 signature error — signed as ${userAddress.slice(0, 10)}… with ${authorizations.length} 7702 auth(s). Log out/in, confirm debug panel EOA matches funded wallet, then retry.`,
+          );
+        }
+        throw err;
+      }
     },
-    [universalAccount, userAddress, embeddedWallet, sign7702Auths, signMessage],
+    [universalAccount, userAddress, embeddedWallet, sign7702Auths],
   );
 
   // MECHANIC 1 (transfer-and-call): one universal transaction sources USDC
